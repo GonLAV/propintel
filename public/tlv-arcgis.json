@@ -1,0 +1,9 @@
+{
+  "generatedAt": "2026-01-02T20:04:58.283Z",
+  "service": "https://gisn.tel-aviv.gov.il/arcgis/rest/services/WM/IView2WM/MapServer",
+  "layerId": "0",
+  "where": "GUSH=6400",
+  "total": 0,
+  "disclaimer": "Public ArcGIS REST query for exploration. Subject to publisher terms; treat as informational only.",
+  "items": []
+}

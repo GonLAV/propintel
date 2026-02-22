@@ -1,0 +1,13 @@
+{
+  "hints": {
+    "no-inline-styles": "off",
+    "axe/forms": "off",
+    "axe/aria": "off",
+    "axe/button-name": "off",
+    "axe/list": "off",
+    "axe/duplicate-id-active": "off",
+    "compat-api/html": "off",
+    "typescript-config/strict": "off",
+    "typescript-config/forceConsistentCasingInFileNames": "off"
+  }
+}

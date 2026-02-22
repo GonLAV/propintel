@@ -1,0 +1,320 @@
+openapi: 3.1.0
+info:
+  title: AI Comparable + Appraisal Report API
+  version: 1.0.0
+  description: Production API contract for comparable search, adjustments, valuation, and grounded report generation.
+servers:
+  - url: https://api.appraisalpro.co.il
+paths:
+  /api/v1/comparables/search:
+    post:
+      summary: Find and rank comparable transactions
+      tags: [Comparables]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComparableSearchRequest'
+      responses:
+        '200':
+          description: Comparable run result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparableRunResponse'
+  /api/v1/comparables/{runId}/adjustments/override:
+    post:
+      summary: Manual override for comparable adjustment
+      tags: [Adjustments]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustmentOverrideRequest'
+      responses:
+        '200':
+          description: Updated comparable with audit reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdjustmentOverrideResponse'
+  /api/v1/valuations/estimate:
+    post:
+      summary: Estimate valuation range from adjusted comparables
+      tags: [Valuation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValuationRequest'
+      responses:
+        '200':
+          description: Valuation output
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValuationResponse'
+  /api/v1/reports/generate:
+    post:
+      summary: Generate grounded appraisal report draft
+      tags: [Reports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportGenerateRequest'
+      responses:
+        '200':
+          description: Report draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportGenerateResponse'
+  /api/v1/reports/{reportId}/validate:
+    post:
+      summary: Run validation checks before appraiser approval
+      tags: [Reports]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+  /api/v1/reports/{reportId}/finalize:
+    post:
+      summary: Finalize and sign report
+      tags: [Reports]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appraiserId, approvalComment]
+              properties:
+                appraiserId:
+                  type: string
+                approvalComment:
+                  type: string
+      responses:
+        '200':
+          description: Finalized report metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reportId, version, pdfUrl, signatureId]
+                properties:
+                  reportId:
+                    type: string
+                  version:
+                    type: integer
+                  pdfUrl:
+                    type: string
+                    format: uri
+                  signatureId:
+                    type: string
+components:
+  schemas:
+    ComparableSearchRequest:
+      type: object
+      required: [subject, topK]
+      properties:
+        subject:
+          $ref: '#/components/schemas/PropertySnapshot'
+        topK:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+    PropertySnapshot:
+      type: object
+      required:
+        - id
+        - lat
+        - lng
+        - propertyType
+        - sizeSqm
+        - floor
+        - buildingAge
+        - conditionScore
+        - hasElevator
+        - hasParking
+        - hasBalcony
+        - hasView
+        - noiseLevel
+        - renovationState
+        - planningPotentialScore
+      properties:
+        id: { type: string }
+        address: { type: string }
+        city: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        propertyType:
+          type: string
+          enum: [apartment, penthouse, garden-apartment, duplex, house, commercial]
+        sizeSqm: { type: number }
+        floor: { type: number }
+        buildingAge: { type: number }
+        conditionScore: { type: number, minimum: 1, maximum: 10 }
+        hasElevator: { type: boolean }
+        hasParking: { type: boolean }
+        hasBalcony: { type: boolean }
+        hasView: { type: boolean }
+        noiseLevel: { type: number, minimum: 1, maximum: 10 }
+        renovationState:
+          type: string
+          enum: [new, renovated, partial, needs-renovation]
+        planningPotentialScore: { type: number, minimum: 0, maximum: 10 }
+    ComparableRunResponse:
+      type: object
+      required: [runId, comparables, elapsedMs]
+      properties:
+        runId: { type: string }
+        elapsedMs: { type: integer }
+        comparables:
+          type: array
+          items:
+            type: object
+            required: [comparableId, similarity, distanceMeters, explanation]
+            properties:
+              comparableId: { type: string }
+              similarity: { type: number }
+              distanceMeters: { type: number }
+              explanation:
+                type: array
+                items: { type: string }
+              adjustment:
+                type: object
+                additionalProperties: { type: number }
+              adjustedPrice: { type: number }
+              weight: { type: number }
+    AdjustmentOverrideRequest:
+      type: object
+      required: [comparableId, appraiserId, reason, patch]
+      properties:
+        comparableId: { type: string }
+        appraiserId: { type: string }
+        reason: { type: string }
+        patch:
+          type: object
+          additionalProperties: { type: number }
+    AdjustmentOverrideResponse:
+      type: object
+      required: [comparableId, updatedAdjustment, auditEventId]
+      properties:
+        comparableId: { type: string }
+        updatedAdjustment:
+          type: object
+          additionalProperties: { type: number }
+        auditEventId: { type: string }
+    ValuationRequest:
+      type: object
+      required: [runId, strategy]
+      properties:
+        runId: { type: string }
+        strategy:
+          type: string
+          enum: [mean, weighted-mean, hedonic]
+    ValuationResponse:
+      type: object
+      required: [runId, strategy, range, confidenceScore, comparablesUsed]
+      properties:
+        runId: { type: string }
+        strategy: { type: string }
+        range:
+          type: object
+          required: [low, mid, high]
+          properties:
+            low: { type: number }
+            mid: { type: number }
+            high: { type: number }
+        confidenceScore: { type: number }
+        comparablesUsed: { type: integer }
+        rejectedOutliers:
+          type: array
+          items: { type: string }
+        rationale:
+          type: array
+          items: { type: string }
+    ReportGenerateRequest:
+      type: object
+      required: [subjectPropertyId, runId, templateId]
+      properties:
+        subjectPropertyId: { type: string }
+        runId: { type: string }
+        templateId:
+          type: string
+          enum: [default-court-il, bank-il, private-client]
+        language:
+          type: string
+          enum: [he, en]
+          default: he
+    ReportGenerateResponse:
+      type: object
+      required: [reportId, version, sections, readyForFinalApproval]
+      properties:
+        reportId: { type: string }
+        version: { type: integer }
+        sections:
+          type: array
+          items:
+            type: object
+            required: [sectionId, title, markdown, groundedFacts]
+            properties:
+              sectionId: { type: string }
+              title: { type: string }
+              markdown: { type: string }
+              groundedFacts:
+                type: array
+                items: { type: string }
+        validations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        readyForFinalApproval: { type: boolean }
+    ValidationResponse:
+      type: object
+      required: [reportId, status, issues]
+      properties:
+        reportId: { type: string }
+        status:
+          type: string
+          enum: [pass, fail]
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+    ValidationIssue:
+      type: object
+      required: [key, severity, message]
+      properties:
+        key: { type: string }
+        severity:
+          type: string
+          enum: [error, warning]
+        message: { type: string }

@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+@import "tw-animate-css";
+
+@layer base {
+  * {
+    @apply border-border
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+      'Helvetica Neue', Arial, sans-serif;
+    overflow-x: hidden;
+  }
+  
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+  }
+}
+
+/*
+ * Additional theme tokens (success, warning) that extend the base palette.
+ * The core :root variables live in main.css — do NOT duplicate them here.
+ */
+:root {
+  --success: oklch(0.55 0.15 150);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.65 0.15 70);
+  --warning-foreground: oklch(0.15 0 0);
+}
+
+@theme {
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+}
+
+@layer utilities {
+  /* Apple-style ultra-soft shadows */
+  .shadow-card {
+    box-shadow:
+      0 2px 12px oklch(0 0 0 / 0.06),
+      0 0 0 0.5px oklch(0 0 0 / 0.03);
+  }
+
+  .shadow-card-hover {
+    box-shadow:
+      0 4px 20px oklch(0 0 0 / 0.10),
+      0 0 0 0.5px oklch(0 0 0 / 0.04);
+  }
+
+  .shadow-card-elevated {
+    box-shadow:
+      0 8px 32px oklch(0 0 0 / 0.12),
+      0 0 0 0.5px oklch(0 0 0 / 0.04);
+  }
+}
