@@ -47,8 +47,14 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import PropertyManagement from './pages/PropertyManagement';
 
-export const pagesConfig = {
-	Pages: {}
+
+export const PAGES = {
+    "PropertyManagement": PropertyManagement,
 }
 
+export const pagesConfig = {
+    mainPage: "PropertyManagement",
+    Pages: PAGES,
+};
