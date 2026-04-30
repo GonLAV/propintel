@@ -15,6 +15,11 @@ export const features = [
   },
   {
     icon: Radar,
+    title: 'Permit Pulse risk windows',
+    description: 'Detect planning-pressure windows, value-at-risk, and control actions before permit uncertainty quietly changes the deal thesis.',
+  },
+  {
+    icon: Radar,
     title: 'Market intelligence engine',
     description: 'Live comparable scoring, zoning signals, rental yield context, and confidence scoring in one operating layer.',
   },

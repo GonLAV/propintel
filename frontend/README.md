@@ -107,6 +107,8 @@ Registration creates a signed mock JWT session. Replace the route handlers with 
 
 The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Instead of only reporting valuation outputs, it asks the investment committee question directly: "what would need to be true for this deal to deserve capital?" It converts price, rent, capex, planning upside, debt, confidence, and risk into approval gates, counteroffer discipline, stress loss, and decisive next actions.
 
+`Permit Pulse` extends the dashboard with a planning-risk operating layer. It converts permit-stage uncertainty into pressure windows, value-at-risk, and control actions so appraisers and acquisition teams can act before planning drift changes the deal thesis.
+
 ## Security Checks
 
 ```bash
