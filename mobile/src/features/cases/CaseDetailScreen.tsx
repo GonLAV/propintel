@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { capturePhotoEvidence, pickPhotoEvidence } from '@/features/cases/evidenceCapture'
+import { generateEvidenceTrustLedger } from '@/features/cases/evidenceTrustLedger'
 import { DiraCase, EvidenceItem } from '@/features/cases/model'
 import { generateResolutionAutopilot } from '@/features/cases/resolutionAutopilot'
 import { colors } from '@/theme/tokens'
@@ -10,6 +11,7 @@ import { colors } from '@/theme/tokens'
 export function CaseDetailScreen({ item, onBack, onAddEvidence }: { item: DiraCase; onBack: () => void; onAddEvidence: (evidence: EvidenceItem) => void }) {
   const letter = buildLetter(item)
   const autopilot = generateResolutionAutopilot(item)
+  const ledger = generateEvidenceTrustLedger(item)
 
   async function shareLetter() {
     await Share.share({ message: letter })
@@ -17,6 +19,10 @@ export function CaseDetailScreen({ item, onBack, onAddEvidence }: { item: DiraCa
 
   async function shareAutopilot() {
     await Share.share({ message: autopilot.shareText })
+  }
+
+  async function shareLedger() {
+    await Share.share({ message: ledger.shareText })
   }
 
   async function addCameraEvidence() {
@@ -74,6 +80,33 @@ export function CaseDetailScreen({ item, onBack, onAddEvidence }: { item: DiraCa
           <Text style={styles.gapsText}>חוסרים: {autopilot.proofGaps.join(' · ')}</Text>
         ) : null}
         <Button label="שיתוף המלצת פעולה" onPress={shareAutopilot} variant="secondary" />
+      </Card>
+
+      <Card style={[styles.card, styles.ledgerCard]}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Evidence Trust Ledger</Text>
+          <Text style={[styles.scorePill, ledger.tier === 'verified' ? styles.scoreStrong : ledger.tier === 'review' ? styles.scoreWorkable : styles.scoreWeak]}>{ledger.trustScore}/100</Text>
+        </View>
+        <Text style={styles.ledgerHeadline}>{ledger.headline}</Text>
+        <Text style={styles.ledgerChain}>Chain ID: {ledger.chainId}</Text>
+        <View style={styles.ledgerTimeline}>
+          {ledger.entries.map((entry, index) => (
+            <View key={entry.id} style={styles.ledgerRow}>
+              <View style={styles.ledgerMarker}>
+                <Text style={styles.ledgerIndex}>{index + 1}</Text>
+              </View>
+              <View style={styles.ledgerText}>
+                <Text style={styles.ledgerLabel}>{entry.label}</Text>
+                <Text style={styles.ledgerProof}>{entry.digest} · {entry.chainProof}</Text>
+                <Text style={styles.ledgerSignals}>{entry.trustSignals.join(' · ')}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+        {ledger.warnings.length ? (
+          <Text style={styles.gapsText}>בדיקה: {ledger.warnings.join(' · ')}</Text>
+        ) : null}
+        <Button label="שיתוף Ledger ראיות" onPress={shareLedger} variant="secondary" />
       </Card>
 
       <Card style={styles.card}>
@@ -145,6 +178,7 @@ const styles = StyleSheet.create({
   evidenceLabel: { color: colors.ink, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   evidenceMeta: { color: colors.muted, fontSize: 12, marginTop: 4, textAlign: 'right' },
   autopilotCard: { borderColor: '#BBF7D0', backgroundColor: '#F8FFFB' },
+  ledgerCard: { borderColor: colors.line, backgroundColor: colors.card },
   scorePill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, fontWeight: '900' },
   scoreStrong: { color: colors.green, backgroundColor: colors.softGreen },
   scoreWorkable: { color: colors.amber, backgroundColor: colors.softAmber },
@@ -156,5 +190,15 @@ const styles = StyleSheet.create({
   autopilotRow: { flexDirection: 'row-reverse', gap: 8, alignItems: 'flex-start' },
   autopilotAction: { flex: 1, color: colors.ink, fontSize: 14, lineHeight: 22, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   gapsText: { color: colors.red, fontSize: 12, lineHeight: 19, textAlign: 'right', writingDirection: 'rtl' },
+  ledgerHeadline: { color: colors.ink, fontSize: 17, lineHeight: 25, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
+  ledgerChain: { color: colors.blue, fontSize: 12, fontWeight: '800', textAlign: 'right' },
+  ledgerTimeline: { gap: 10 },
+  ledgerRow: { flexDirection: 'row-reverse', gap: 10, alignItems: 'flex-start' },
+  ledgerMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.softBlue, alignItems: 'center', justifyContent: 'center' },
+  ledgerIndex: { color: colors.blue, fontSize: 12, fontWeight: '900' },
+  ledgerText: { flex: 1, gap: 3 },
+  ledgerLabel: { color: colors.ink, fontSize: 14, lineHeight: 21, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  ledgerProof: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'right' },
+  ledgerSignals: { color: colors.green, fontSize: 11, lineHeight: 17, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   letter: { color: colors.ink, fontSize: 15, lineHeight: 25, textAlign: 'right', writingDirection: 'rtl' },
 })

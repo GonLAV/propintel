@@ -34,6 +34,7 @@ Essential only:
 4. Generate a formal Hebrew letter.
 5. Track next action and deadline.
 6. Resolution Autopilot: score case readiness, expose evidence gaps, and recommend the next least-escalatory move.
+7. Evidence Trust Ledger: chain evidence metadata into an auditable proof timeline that can be shared before escalation.
 
 Removed from MVP:
 
@@ -71,3 +72,9 @@ Every case naturally touches another person: landlord, roommate, parent, agent, 
 Typical rental tools store documents or generate templates. Resolution Autopilot acts like a dispute operating layer: it reviews the case category, evidence mix, hash quality, status, and next action, then produces a readiness score and a concrete settlement move. The product value is behavioral, not decorative: users learn whether to send, wait, document, or clarify before they accidentally escalate with weak evidence.
 
 This should remain deterministic and explainable in the MVP. Later, server-side models can personalize wording from verified case history, but the first version avoids legal hallucination by only using facts already inside the case.
+
+## Differentiating Feature: Evidence Trust Ledger
+
+Typical evidence folders are just piles of photos and screenshots. Evidence Trust Ledger turns every case into a chronological proof chain: each item receives a ledger digest, the chain produces a final Chain ID, and the app flags weak metadata or missing proof types. This gives renters a professional artifact they can share with a landlord, parent, support organization, or lawyer without waiting for a server-side notarization product.
+
+The MVP version is intentionally deterministic and local. It does not claim legal certification; it explains evidence quality, order, and gaps. The production path is clear: server-side content hashing, immutable storage, verified uploads, and exportable evidence packets.

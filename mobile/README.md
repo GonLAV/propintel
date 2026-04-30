@@ -18,6 +18,7 @@ npm run start
 4. Share formal Hebrew letter with signed evidence summary.
 5. Add camera or gallery evidence to a case; each item receives local SHA-256 metadata fingerprinting.
 6. Review `Resolution Autopilot` for readiness score, evidence gaps, and the next recommended settlement move.
+7. Review `Evidence Trust Ledger` for a chained evidence timeline, trust score, metadata warnings, and shareable proof summary.
 
 ## Production Checks
 
