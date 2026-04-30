@@ -1,3 +1,5 @@
+import { createDecisionAuditEvent, logDecisionAudit } from '@/lib/decision-audit'
+import { decisionRiskConfig } from '@/lib/decision-config'
 import { average, clamp, formatMoneyMillions, highestBy, parseCurrencyMillions, parsePercent, sanitizeAssetRows, type UnderwritingRow } from '@/lib/decision-utils'
 
 export type PermitPulseInput = {
@@ -29,7 +31,8 @@ const cityStageProfile: Record<string, Pick<PermitPulseSignal, 'deadlineWindow' 
 }
 
 export function generatePermitPulse(rows: PermitPulseInput[]): PermitPulseSignal[] {
-  return sanitizeAssetRows(rows).map((row, index) => {
+  const safeRows = sanitizeAssetRows(rows)
+  const signals = safeRows.map((row, index) => {
     const confidence = parsePercent(row.confidence)
     const value = parseCurrencyMillions(row.value)
     const stageProfile = cityStageProfile[row.city] || { deadlineWindow: '30 days', permitStage: 'municipal review' }
@@ -38,7 +41,7 @@ export function generatePermitPulse(rows: PermitPulseInput[]): PermitPulseSignal
     const exposureRisk = value > 5 ? 14 : value > 2 ? 9 : 5
     const volatilityRisk = row.city === 'Tel Aviv' ? 11 : row.city === 'Jerusalem' ? 8 : 6
     const riskScore = clamp(Math.round(baseRisk + statusRisk + exposureRisk + volatilityRisk + index * 2), 18, 94)
-    const signal = riskScore >= 58 ? 'accelerate' : riskScore >= 42 ? 'watch' : 'hold'
+    const signal: PermitPulseSignal['signal'] = riskScore >= decisionRiskConfig.permitAccelerateScore ? 'accelerate' : riskScore >= decisionRiskConfig.permitWatchScore ? 'watch' : 'hold'
 
     return {
       asset: row.asset,
@@ -52,6 +55,9 @@ export function generatePermitPulse(rows: PermitPulseInput[]): PermitPulseSignal
       drivers: buildDrivers(row, riskScore),
     }
   })
+
+  logDecisionAudit(createDecisionAuditEvent('permit-pulse', safeRows.length, signals.length))
+  return signals
 }
 
 export function summarizePermitPulse(signals: PermitPulseSignal[]) {

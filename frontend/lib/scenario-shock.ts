@@ -1,4 +1,6 @@
 import { generateCapitalCovenantRadar } from '@/lib/capital-covenant'
+import { createDecisionAuditEvent, logDecisionAudit } from '@/lib/decision-audit'
+import { decisionRiskConfig } from '@/lib/decision-config'
 import { average, clamp, highestBy, parseCurrencyMillions, parsePercent, sanitizeAssetRows } from '@/lib/decision-utils'
 import { generatePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 
@@ -31,7 +33,7 @@ export function generateScenarioShockMatrix(rows: PermitPulseInput[]) {
   const permitSignals = generatePermitPulse(safeRows)
   const covenantSignals = generateCapitalCovenantRadar(safeRows)
 
-  return shockScenarios.map((scenario) => {
+  const matrix = shockScenarios.map((scenario) => {
     const results = safeRows.map((row, index) => {
       const confidence = parsePercent(row.confidence)
       const value = parseCurrencyMillions(row.value)
@@ -58,6 +60,9 @@ export function generateScenarioShockMatrix(rows: PermitPulseInput[]) {
       firstToBreak: highestBy(results, (result) => result.breakScore),
     }
   })
+
+  logDecisionAudit(createDecisionAuditEvent('scenario-shock', safeRows.length, matrix.flatMap((entry) => entry.results).length))
+  return matrix
 }
 
 export function summarizeScenarioShockMatrix(rows: PermitPulseInput[]) {
@@ -82,8 +87,8 @@ function findFirstBreak(scenario: ShockScenario, permitRisk: number, covenantRis
 }
 
 function buildBoardMove(breakScore: number, asset: string) {
-  if (breakScore >= 72) return `Pause ${asset} approval until downside case is repriced.`
-  if (breakScore >= 54) return `Keep ${asset} live, but require a shock-adjusted IC memo.`
+  if (breakScore >= decisionRiskConfig.shockCriticalScore) return `Pause ${asset} approval until downside case is repriced.`
+  if (breakScore >= decisionRiskConfig.shockWatchScore) return `Keep ${asset} live, but require a shock-adjusted IC memo.`
   return `Keep ${asset} in standard review with weekly signal refresh.`
 }
 

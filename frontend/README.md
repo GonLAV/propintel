@@ -115,6 +115,8 @@ The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Inste
 
 `Review Defense Pack` adds valuation defensibility scoring. It checks whether each report has enough confidence, evidence coverage, planning context, financing sensitivity, and downside explanation to survive senior reviewer, lender, or audit scrutiny before external export.
 
+The dashboard decision engines share bounded parsing, sanitization, and scoring helpers in `lib/decision-utils.ts`. Production thresholds are configurable through `NEXT_PUBLIC_*_SCORE` environment variables listed in `.env.example`; audit logging is opt-in with `NEXT_PUBLIC_DECISION_AUDIT_LOGS=true` and emits only module names, counts, timestamps, and model version, never asset names or financial values.
+
 ## Security Checks
 
 ```bash

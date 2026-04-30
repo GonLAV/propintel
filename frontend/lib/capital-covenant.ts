@@ -1,3 +1,5 @@
+import { createDecisionAuditEvent, logDecisionAudit } from '@/lib/decision-audit'
+import { decisionRiskConfig } from '@/lib/decision-config'
 import { average, clamp, highestBy, parseCurrencyMillions, parsePercent, sanitizeAssetRows } from '@/lib/decision-utils'
 import { generatePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 
@@ -16,14 +18,14 @@ export function generateCapitalCovenantRadar(rows: PermitPulseInput[]): CapitalC
   const safeRows = sanitizeAssetRows(rows)
   const permitSignals = generatePermitPulse(safeRows)
 
-  return safeRows.map((row, index) => {
+  const signals = safeRows.map((row, index) => {
     const confidence = parsePercent(row.confidence)
     const value = parseCurrencyMillions(row.value)
     const permitRisk = permitSignals[index]?.riskScore || 40
     const exposureLoad = value > 5 ? 13 : value > 2 ? 8 : 4
     const statusLoad = row.status === 'Draft' ? 14 : row.status === 'Review' ? 9 : 3
     const covenantScore = clamp(Math.round(permitRisk * 0.48 + (100 - confidence) * 0.34 + exposureLoad + statusLoad), 12, 96)
-    const lenderPosture = covenantScore >= 62 ? 'renegotiate' : covenantScore >= 44 ? 'tighten' : 'greenlight'
+    const lenderPosture: CapitalCovenantSignal['lenderPosture'] = covenantScore >= decisionRiskConfig.covenantRenegotiateScore ? 'renegotiate' : covenantScore >= decisionRiskConfig.covenantTightenScore ? 'tighten' : 'greenlight'
 
     return {
       asset: row.asset,
@@ -36,6 +38,9 @@ export function generateCapitalCovenantRadar(rows: PermitPulseInput[]): CapitalC
       triggers: buildTriggers(row, permitRisk, covenantScore),
     }
   })
+
+  logDecisionAudit(createDecisionAuditEvent('capital-covenant', safeRows.length, signals.length))
+  return signals
 }
 
 export function summarizeCapitalCovenants(signals: CapitalCovenantSignal[]) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateCapitalCovenantRadar } from '@/lib/capital-covenant'
+import { createDecisionAuditEvent } from '@/lib/decision-audit'
+import { loadDecisionRiskConfig } from '@/lib/decision-config'
 import { generatePermitPulse, summarizePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 import { generateReviewDefensePack } from '@/lib/review-defense'
 import { summarizeScenarioShockMatrix } from '@/lib/scenario-shock'
@@ -73,5 +75,35 @@ describe('PropIntel decision engines', () => {
     expect(covenant.covenantScore).toBeGreaterThanOrEqual(12)
     expect(defense.defenseScore).toBeGreaterThanOrEqual(8)
     expect(defense.missingProof).toContain('final reviewer sign-off')
+  })
+
+  it('loads bounded decision thresholds from environment config', () => {
+    const config = loadDecisionRiskConfig({
+      NEXT_PUBLIC_DECISION_MODEL_VERSION: '<v-test>',
+      NEXT_PUBLIC_DECISION_AUDIT_LOGS: 'true',
+      NEXT_PUBLIC_PERMIT_ACCELERATE_SCORE: '150',
+      NEXT_PUBLIC_PERMIT_WATCH_SCORE: '-20',
+      NEXT_PUBLIC_COVENANT_RENEGOTIATE_SCORE: 'not-a-number',
+    })
+
+    expect(config.modelVersion).toBe('v-test')
+    expect(config.enableDecisionAuditLogs).toBe(true)
+    expect(config.permitAccelerateScore).toBe(100)
+    expect(config.permitWatchScore).toBe(0)
+    expect(config.covenantRenegotiateScore).toBe(62)
+  })
+
+  it('creates privacy-safe audit events without asset names or values', () => {
+    const event = createDecisionAuditEvent('review-defense', 2, 2)
+    const clampedEvent = createDecisionAuditEvent('permit-pulse', -1, 200000)
+    const serialized = JSON.stringify(event)
+
+    expect(event.module).toBe('review-defense')
+    expect(event.inputCount).toBe(2)
+    expect(event.outputCount).toBe(2)
+    expect(clampedEvent.inputCount).toBe(0)
+    expect(clampedEvent.outputCount).toBe(100000)
+    expect(serialized).not.toContain('Rothschild')
+    expect(serialized).not.toContain('$')
   })
 })

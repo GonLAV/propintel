@@ -2,6 +2,7 @@
 
 import { Activity, AlertTriangle, Gauge, Waves } from 'lucide-react'
 import { Badge, Card } from '@/components/ui/card'
+import { decisionRiskConfig } from '@/lib/decision-config'
 import { summarizeScenarioShockMatrix } from '@/lib/scenario-shock'
 import { valuationRows } from '@/lib/data'
 import { cn } from '@/lib/utils'
@@ -39,7 +40,7 @@ export function ScenarioShockMatrix() {
                 <p className="text-sm font-semibold text-white">{scenario.label}</p>
                 <p className="mt-1 text-xs text-white/42">{scenario.rateShockBps} bps · {scenario.rentShockPercent}% rent · {scenario.permitDelayDays}d delay</p>
               </div>
-              <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', firstToBreak && firstToBreak.breakScore >= 72 && 'bg-rose/10 text-rose', firstToBreak && firstToBreak.breakScore >= 54 && firstToBreak.breakScore < 72 && 'bg-amber/10 text-amber', (!firstToBreak || firstToBreak.breakScore < 54) && 'bg-mint/10 text-mint')}>
+              <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', firstToBreak && firstToBreak.breakScore >= decisionRiskConfig.shockCriticalScore && 'bg-rose/10 text-rose', firstToBreak && firstToBreak.breakScore >= decisionRiskConfig.shockWatchScore && firstToBreak.breakScore < decisionRiskConfig.shockCriticalScore && 'bg-amber/10 text-amber', (!firstToBreak || firstToBreak.breakScore < decisionRiskConfig.shockWatchScore) && 'bg-mint/10 text-mint')}>
                 {firstToBreak ? `${firstToBreak.breakScore}/100` : 'No data'}
               </span>
             </div>
@@ -56,7 +57,7 @@ export function ScenarioShockMatrix() {
                 <div key={`${scenario.id}-${result.asset}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
                   <span className="truncate text-sm text-white/70">{result.asset}</span>
                   <span className="text-xs text-white/38">{result.equityBuffer}</span>
-                  <span className={cn('text-sm font-semibold', result.breakScore >= 72 && 'text-rose', result.breakScore >= 54 && result.breakScore < 72 && 'text-amber', result.breakScore < 54 && 'text-mint')}>
+                  <span className={cn('text-sm font-semibold', result.breakScore >= decisionRiskConfig.shockCriticalScore && 'text-rose', result.breakScore >= decisionRiskConfig.shockWatchScore && result.breakScore < decisionRiskConfig.shockCriticalScore && 'text-amber', result.breakScore < decisionRiskConfig.shockWatchScore && 'text-mint')}>
                     {result.breakScore}
                   </span>
                 </div>

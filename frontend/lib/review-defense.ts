@@ -1,4 +1,6 @@
 import { generateCapitalCovenantRadar } from '@/lib/capital-covenant'
+import { createDecisionAuditEvent, logDecisionAudit } from '@/lib/decision-audit'
+import { decisionRiskConfig } from '@/lib/decision-config'
 import { average, clamp, lowestBy, parsePercent, sanitizeAssetRows } from '@/lib/decision-utils'
 import { generatePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 import { summarizeScenarioShockMatrix } from '@/lib/scenario-shock'
@@ -22,14 +24,14 @@ export function generateReviewDefensePack(rows: PermitPulseInput[]): ReviewDefen
   const covenantSignals = generateCapitalCovenantRadar(safeRows)
   const shockSummary = summarizeScenarioShockMatrix(safeRows)
 
-  return safeRows.map((row, index) => {
+  const signals = safeRows.map((row, index) => {
     const confidence = parsePercent(row.confidence)
     const permitRisk = permitSignals[index]?.riskScore || 40
     const covenantRisk = covenantSignals[index]?.covenantScore || 40
     const shockRisk = findShockRisk(shockSummary.matrix, row.asset)
     const evidenceCoverage = calculateEvidenceCoverage(row, permitRisk, covenantRisk, shockRisk)
     const defenseScore = clamp(Math.round(confidence * 0.38 + evidenceCoverage * 0.34 + (100 - Math.max(permitRisk, covenantRisk, shockRisk)) * 0.28), 8, 98)
-    const status = defenseScore >= 76 ? 'defensible' : defenseScore >= 56 ? 'needs-review' : 'not-ready'
+    const status: DefenseStatus = defenseScore >= decisionRiskConfig.defenseReadyScore ? 'defensible' : defenseScore >= decisionRiskConfig.defenseReviewScore ? 'needs-review' : 'not-ready'
 
     return {
       asset: row.asset,
@@ -42,6 +44,9 @@ export function generateReviewDefensePack(rows: PermitPulseInput[]): ReviewDefen
       exportGate: buildExportGate(status, row.asset),
     }
   })
+
+  logDecisionAudit(createDecisionAuditEvent('review-defense', safeRows.length, signals.length))
+  return signals
 }
 
 export function summarizeReviewDefensePack(signals: ReviewDefenseSignal[]) {
