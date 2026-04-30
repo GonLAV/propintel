@@ -29,6 +29,11 @@ export const features = [
     description: 'Stress-test rate jumps, rent softness, and permit delays to reveal which asset breaks first and what the board should do next.',
   },
   {
+    icon: FileSearch,
+    title: 'Review Defense Pack',
+    description: 'Score whether each valuation can survive lender, audit, and senior-review scrutiny before the report leaves the team.',
+  },
+  {
     icon: Radar,
     title: 'Market intelligence engine',
     description: 'Live comparable scoring, zoning signals, rental yield context, and confidence scoring in one operating layer.',

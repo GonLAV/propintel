@@ -113,6 +113,8 @@ The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Inste
 
 `Scenario Shock Matrix` adds board-level downside intelligence. It stress-tests rate jumps, rent softness, and permit delays to show which asset breaks first, how much equity buffer remains, and what action should be taken before the market shock becomes real.
 
+`Review Defense Pack` adds valuation defensibility scoring. It checks whether each report has enough confidence, evidence coverage, planning context, financing sensitivity, and downside explanation to survive senior reviewer, lender, or audit scrutiny before external export.
+
 ## Security Checks
 
 ```bash

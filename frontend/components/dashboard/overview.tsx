@@ -6,6 +6,7 @@ import { ArrowRight, ArrowUpRight, BrainCircuit, CheckCircle2, ShieldCheck } fro
 import { Badge, Card } from '@/components/ui/card'
 import { CapitalCovenantRadar } from '@/components/dashboard/capital-covenant-radar'
 import { PermitPulsePanel } from '@/components/dashboard/permit-pulse-panel'
+import { ReviewDefensePack } from '@/components/dashboard/review-defense-pack'
 import { ScenarioShockMatrix } from '@/components/dashboard/scenario-shock-matrix'
 import { activity, dashboardCards, valuationRows } from '@/lib/data'
 
@@ -93,6 +94,8 @@ export function DashboardOverview() {
       <CapitalCovenantRadar />
 
       <ScenarioShockMatrix />
+
+      <ReviewDefensePack />
 
       <Card id="assets" className="overflow-hidden p-0">
         <div className="flex flex-col gap-3 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between">
