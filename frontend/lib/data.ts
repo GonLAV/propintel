@@ -19,6 +19,11 @@ export const features = [
     description: 'Detect planning-pressure windows, value-at-risk, and control actions before permit uncertainty quietly changes the deal thesis.',
   },
   {
+    icon: LockKeyhole,
+    title: 'Capital Covenant Radar',
+    description: 'Translate valuation confidence, permit pressure, and exposure into lender posture, LTV headroom, DSCR buffer, and financing next moves.',
+  },
+  {
     icon: Radar,
     title: 'Market intelligence engine',
     description: 'Live comparable scoring, zoning signals, rental yield context, and confidence scoring in one operating layer.',

@@ -109,6 +109,8 @@ The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Inste
 
 `Permit Pulse` extends the dashboard with a planning-risk operating layer. It converts permit-stage uncertainty into pressure windows, value-at-risk, and control actions so appraisers and acquisition teams can act before planning drift changes the deal thesis.
 
+`Capital Covenant Radar` adds a lender-facing risk layer. It converts valuation confidence, permit pressure, and asset exposure into covenant pressure, LTV headroom, DSCR buffer, lender posture, and financing next moves before term-sheet drift surprises the team.
+
 ## Security Checks
 
 ```bash

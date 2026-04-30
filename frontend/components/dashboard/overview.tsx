@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, ArrowUpRight, BrainCircuit, CheckCircle2, ShieldCheck } from 'lucide-react'
 import { Badge, Card } from '@/components/ui/card'
+import { CapitalCovenantRadar } from '@/components/dashboard/capital-covenant-radar'
 import { PermitPulsePanel } from '@/components/dashboard/permit-pulse-panel'
 import { activity, dashboardCards, valuationRows } from '@/lib/data'
 
@@ -87,6 +88,8 @@ export function DashboardOverview() {
       </Card>
 
       <PermitPulsePanel />
+
+      <CapitalCovenantRadar />
 
       <Card id="assets" className="overflow-hidden p-0">
         <div className="flex flex-col gap-3 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between">
