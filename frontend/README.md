@@ -111,6 +111,8 @@ The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Inste
 
 `Capital Covenant Radar` adds a lender-facing risk layer. It converts valuation confidence, permit pressure, and asset exposure into covenant pressure, LTV headroom, DSCR buffer, lender posture, and financing next moves before term-sheet drift surprises the team.
 
+`Scenario Shock Matrix` adds board-level downside intelligence. It stress-tests rate jumps, rent softness, and permit delays to show which asset breaks first, how much equity buffer remains, and what action should be taken before the market shock becomes real.
+
 ## Security Checks
 
 ```bash

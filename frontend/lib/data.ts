@@ -24,6 +24,11 @@ export const features = [
     description: 'Translate valuation confidence, permit pressure, and exposure into lender posture, LTV headroom, DSCR buffer, and financing next moves.',
   },
   {
+    icon: BarChart3,
+    title: 'Scenario Shock Matrix',
+    description: 'Stress-test rate jumps, rent softness, and permit delays to reveal which asset breaks first and what the board should do next.',
+  },
+  {
     icon: Radar,
     title: 'Market intelligence engine',
     description: 'Live comparable scoring, zoning signals, rental yield context, and confidence scoring in one operating layer.',
