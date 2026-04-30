@@ -5,8 +5,25 @@
 
 import type { Comparable, ValuationResult } from './types'
 import { createLogger } from '@/lib/logger'
+import { getMvpApiBaseUrl } from '@/lib/runtimeConfig'
 
 const log = createLogger('APIClient')
+
+export class APIClientError extends Error {
+  status: number
+  code?: string
+  requestId?: string
+  details?: unknown
+
+  constructor(message: string, options: { status: number; code?: string; requestId?: string; details?: unknown }) {
+    super(message)
+    this.name = 'APIClientError'
+    this.status = options.status
+    this.code = options.code
+    this.requestId = options.requestId
+    this.details = options.details
+  }
+}
 
 export interface APIClientConfig {
   baseURL: string
@@ -153,7 +170,7 @@ export class APIClient {
   private timeout: number
 
   constructor(config: APIClientConfig) {
-    this.baseURL = config.baseURL
+    this.baseURL = config.baseURL.replace(/\/+$/, '')
     this.apiKey = config.apiKey
     this.timeout = config.timeout || 30000
   }
@@ -180,16 +197,32 @@ export class APIClient {
 
       clearTimeout(timeoutId)
 
+      const requestId = response.headers.get('x-request-id') || undefined
+      const contentType = response.headers.get('content-type') || ''
+      const payload = response.status === 204
+        ? null
+        : contentType.includes('application/json')
+          ? await response.json().catch(() => null)
+          : await response.text().catch(() => null)
+
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: response.statusText }))
-        throw new Error(error.message || `HTTP ${response.status}`)
+        const normalized = normalizeErrorPayload(payload)
+        throw new APIClientError(normalized.message || response.statusText || `HTTP ${response.status}`, {
+          status: response.status,
+          code: normalized.code,
+          requestId: normalized.requestId || requestId,
+          details: normalized.details,
+        })
       }
 
-      return await response.json()
+      return payload
     } catch (error) {
       clearTimeout(timeoutId)
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new APIClientError(`Request timed out after ${this.timeout}ms`, { status: 0, code: 'TIMEOUT' })
+      }
       if (error instanceof Error) throw error
-      throw new Error('Network error')
+      throw new APIClientError('Network error', { status: 0, code: 'NETWORK_ERROR' })
     }
   }
 
@@ -436,8 +469,36 @@ export class MockAPIClient implements Omit<APIClient, 'fetch'> {
  * Factory to create appropriate client based on environment.
  */
 export function createAPIClient(
-  baseURL: string = process.env.REACT_APP_API_URL || 'http://localhost:3000',
+  baseURL: string = getMvpApiBaseUrl(),
   apiKey?: string
 ): APIClient {
   return new APIClient({ baseURL, apiKey })
+}
+
+function normalizeErrorPayload(payload: unknown): { message?: string; code?: string; requestId?: string; details?: unknown } {
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>
+    const nested = record.error && typeof record.error === 'object'
+      ? record.error as Record<string, unknown>
+      : record
+
+    return {
+      message: typeof nested.message === 'string'
+        ? nested.message
+        : typeof record.message === 'string'
+          ? record.message
+          : typeof record.error === 'string'
+            ? record.error
+            : undefined,
+      code: typeof nested.code === 'string' ? nested.code : undefined,
+      requestId: typeof nested.requestId === 'string' ? nested.requestId : undefined,
+      details: nested.details,
+    }
+  }
+
+  if (typeof payload === 'string') {
+    return { message: payload }
+  }
+
+  return {}
 }

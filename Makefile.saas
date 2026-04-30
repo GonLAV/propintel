@@ -1,0 +1,42 @@
+.PHONY: help install up down logs migrate migrate-down test lint build clean
+
+help:
+	@echo "PropIntel SaaS backend - common targets"
+	@echo "  make install   install backend deps"
+	@echo "  make up        docker compose up -d (postgres+redis+api)"
+	@echo "  make down      docker compose down"
+	@echo "  make logs      docker compose logs -f api"
+	@echo "  make migrate   run db migrations"
+	@echo "  make test      run jest"
+	@echo "  make lint      run eslint"
+	@echo "  make build     docker build api image"
+
+install:
+	cd saas-backend && npm install
+
+up:
+	cd saas-backend && docker compose up -d --build
+
+down:
+	cd saas-backend && docker compose down
+
+logs:
+	cd saas-backend && docker compose logs -f api
+
+migrate:
+	cd saas-backend && npm run migrate
+
+migrate-down:
+	cd saas-backend && npm run migrate:down
+
+test:
+	cd saas-backend && npm test
+
+lint:
+	cd saas-backend && npm run lint
+
+build:
+	cd saas-backend && docker build -t propintel-api:local .
+
+clean:
+	cd saas-backend && rm -rf node_modules coverage

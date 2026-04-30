@@ -1,0 +1,15 @@
+node_modules
+coverage
+.env
+.env.*
+!.env.example
+*.log
+.git
+.github
+.idea
+.vscode
+tests
+README.md
+Dockerfile
+docker-compose.yml
+__wt
