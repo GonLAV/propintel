@@ -59,6 +59,36 @@ export default defineConfig({
       '@': resolve(projectRoot, 'src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react-vendor'
+          if (/[\\/]node_modules[\\/]@github[\\/]spark[\\/]/.test(id)) return 'spark-vendor'
+          if (/[\\/]node_modules[\\/](@radix-ui|cmdk|vaul|sonner|class-variance-authority|tailwind-merge|clsx)[\\/]/.test(id)) return 'ui-vendor'
+          if (/[\\/]node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/.test(id)) return 'motion-vendor'
+          if (/[\\/]node_modules[\\/](@tanstack|react-hook-form|@hookform|zod)[\\/]/.test(id)) return 'forms-vendor'
+          if (/[\\/]node_modules[\\/](recharts|d3)[\\/]/.test(id)) return 'charts-vendor'
+          if (/[\\/]node_modules[\\/]jspdf[\\/]/.test(id)) return 'pdf-vendor'
+          if (/[\\/]node_modules[\\/]html2canvas[\\/]/.test(id)) return 'canvas-vendor'
+          if (/[\\/]node_modules[\\/](pdfjs-dist|tesseract.js)[\\/]/.test(id)) return 'ocr-vendor'
+          if (/[\\/]node_modules[\\/]three[\\/]/.test(id)) return 'three-vendor'
+          if (/[\\/]node_modules[\\/]date-fns[\\/]/.test(id)) return 'date-vendor'
+          if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]react[\\/]/.test(id)) {
+            const iconName = id.match(/[\\/]dist[\\/]csr[\\/]([A-Z])/)?.[1] ?? 'other'
+            if (iconName <= 'F') return 'icons-a-f-vendor'
+            if (iconName <= 'M') return 'icons-g-m-vendor'
+            if (iconName <= 'S') return 'icons-n-s-vendor'
+            return 'icons-t-z-vendor'
+          }
+
+          return 'vendor'
+        },
+      },
+    },
+  },
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'saas-backend/**', '**/__wt/**'],

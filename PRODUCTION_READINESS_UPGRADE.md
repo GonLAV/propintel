@@ -117,7 +117,7 @@ The repository now uses `.github/workflows/ci-cd.yml` as the canonical pull-requ
 
 The workflow validates:
 
-- Root Spark app: `npm ci`, `npm run lint`, `npm test`, and `npm audit --audit-level=moderate`
+- Root Spark app: `npm ci`, `npm run lint`, `npm test`, `npm run build`, and `npm audit --audit-level=moderate`
 - Premium frontend: `npm ci`, `npm run test`, `npm run typecheck`, `npm run security`, and `npm run build`
 - Mobile app: `npm ci`, `npm run typecheck`, and `npm audit --audit-level=moderate`
 - SaaS backend: `npm ci`, `npm run lint`, `npm run test:coverage`, and `npm audit --audit-level=moderate`
@@ -125,6 +125,8 @@ The workflow validates:
 `.github/workflows/codeql.yml` runs JavaScript/TypeScript CodeQL with `security-extended` and `security-and-quality` queries on pushes, pull requests, a weekly schedule, and manual dispatch.
 
 Both workflows use concurrency cancellation so newer pushes supersede stale runs for the same PR or branch. Dependabot is configured for the root app, `frontend/`, `mobile/`, `saas-backend/`, GitHub Actions, and devcontainers.
+
+The root Vite build also uses explicit vendor chunking for React, Spark, UI primitives, charts, PDF/canvas generation, OCR libraries, Three.js, date utilities, and icons. This keeps large optional libraries out of the main application bundle while preserving the existing lazy-loaded feature screens.
 
 ## Security Disclosure Policy
 
