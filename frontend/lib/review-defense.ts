@@ -1,4 +1,5 @@
 import { generateCapitalCovenantRadar } from '@/lib/capital-covenant'
+import { average, clamp, lowestBy, parsePercent, sanitizeAssetRows } from '@/lib/decision-utils'
 import { generatePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 import { summarizeScenarioShockMatrix } from '@/lib/scenario-shock'
 
@@ -16,11 +17,12 @@ export type ReviewDefenseSignal = {
 }
 
 export function generateReviewDefensePack(rows: PermitPulseInput[]): ReviewDefenseSignal[] {
-  const permitSignals = generatePermitPulse(rows)
-  const covenantSignals = generateCapitalCovenantRadar(rows)
-  const shockSummary = summarizeScenarioShockMatrix(rows)
+  const safeRows = sanitizeAssetRows(rows)
+  const permitSignals = generatePermitPulse(safeRows)
+  const covenantSignals = generateCapitalCovenantRadar(safeRows)
+  const shockSummary = summarizeScenarioShockMatrix(safeRows)
 
-  return rows.map((row, index) => {
+  return safeRows.map((row, index) => {
     const confidence = parsePercent(row.confidence)
     const permitRisk = permitSignals[index]?.riskScore || 40
     const covenantRisk = covenantSignals[index]?.covenantScore || 40
@@ -43,9 +45,9 @@ export function generateReviewDefensePack(rows: PermitPulseInput[]): ReviewDefen
 }
 
 export function summarizeReviewDefensePack(signals: ReviewDefenseSignal[]) {
-  const weakest = [...signals].sort((first, second) => first.defenseScore - second.defenseScore)[0]
+  const weakest = lowestBy(signals, (signal) => signal.defenseScore)
   const defensibleCount = signals.filter((signal) => signal.status === 'defensible').length
-  const averageDefense = Math.round(signals.reduce((sum, signal) => sum + signal.defenseScore, 0) / Math.max(signals.length, 1))
+  const averageDefense = average(signals.map((signal) => signal.defenseScore))
 
   return {
     weakest,
@@ -97,10 +99,3 @@ function buildExportGate(status: DefenseStatus, asset: string) {
   return `Block ${asset} export until missing proof is resolved.`
 }
 
-function parsePercent(value: string) {
-  return Number(value.replace('%', '')) || 0
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}

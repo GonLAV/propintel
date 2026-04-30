@@ -118,9 +118,11 @@ The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Inste
 ## Security Checks
 
 ```bash
+npm run test
 npm run typecheck
 npm run build
 npm run security
 ```
 
 `npm run security` runs a local source scan for unsafe constructs and `npm audit --audit-level=moderate`.
+`npm run test` runs deterministic unit tests for the dashboard decision engines, including malformed input cases and bounded-score checks.

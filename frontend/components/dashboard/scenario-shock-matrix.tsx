@@ -39,16 +39,16 @@ export function ScenarioShockMatrix() {
                 <p className="text-sm font-semibold text-white">{scenario.label}</p>
                 <p className="mt-1 text-xs text-white/42">{scenario.rateShockBps} bps · {scenario.rentShockPercent}% rent · {scenario.permitDelayDays}d delay</p>
               </div>
-              <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', firstToBreak.breakScore >= 72 && 'bg-rose/10 text-rose', firstToBreak.breakScore >= 54 && firstToBreak.breakScore < 72 && 'bg-amber/10 text-amber', firstToBreak.breakScore < 54 && 'bg-mint/10 text-mint')}>
-                {firstToBreak.breakScore}/100
+              <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', firstToBreak && firstToBreak.breakScore >= 72 && 'bg-rose/10 text-rose', firstToBreak && firstToBreak.breakScore >= 54 && firstToBreak.breakScore < 72 && 'bg-amber/10 text-amber', (!firstToBreak || firstToBreak.breakScore < 54) && 'bg-mint/10 text-mint')}>
+                {firstToBreak ? `${firstToBreak.breakScore}/100` : 'No data'}
               </span>
             </div>
 
             <div className="mt-5 rounded-2xl border border-white/10 bg-ink/35 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/34">Breaks first</p>
-              <p className="mt-2 text-lg font-semibold text-white">{firstToBreak.asset}</p>
-              <p className="mt-2 text-sm leading-6 text-white/50">{firstToBreak.firstBreak}</p>
-              <p className="mt-3 text-sm leading-6 text-cyan">{firstToBreak.boardMove}</p>
+              <p className="mt-2 text-lg font-semibold text-white">{firstToBreak?.asset || 'No active asset'}</p>
+              <p className="mt-2 text-sm leading-6 text-white/50">{firstToBreak?.firstBreak || 'Add assets to calculate scenario exposure.'}</p>
+              <p className="mt-3 text-sm leading-6 text-cyan">{firstToBreak?.boardMove || 'No board action required yet.'}</p>
             </div>
 
             <div className="mt-4 space-y-2">

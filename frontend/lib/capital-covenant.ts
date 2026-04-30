@@ -1,3 +1,4 @@
+import { average, clamp, highestBy, parseCurrencyMillions, parsePercent, sanitizeAssetRows } from '@/lib/decision-utils'
 import { generatePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 
 export type CapitalCovenantSignal = {
@@ -12,9 +13,10 @@ export type CapitalCovenantSignal = {
 }
 
 export function generateCapitalCovenantRadar(rows: PermitPulseInput[]): CapitalCovenantSignal[] {
-  const permitSignals = generatePermitPulse(rows)
+  const safeRows = sanitizeAssetRows(rows)
+  const permitSignals = generatePermitPulse(safeRows)
 
-  return rows.map((row, index) => {
+  return safeRows.map((row, index) => {
     const confidence = parsePercent(row.confidence)
     const value = parseCurrencyMillions(row.value)
     const permitRisk = permitSignals[index]?.riskScore || 40
@@ -37,9 +39,9 @@ export function generateCapitalCovenantRadar(rows: PermitPulseInput[]): CapitalC
 }
 
 export function summarizeCapitalCovenants(signals: CapitalCovenantSignal[]) {
-  const highestPressure = [...signals].sort((first, second) => second.covenantScore - first.covenantScore)[0]
+  const highestPressure = highestBy(signals, (signal) => signal.covenantScore)
   const renegotiateCount = signals.filter((signal) => signal.lenderPosture === 'renegotiate').length
-  const averageScore = Math.round(signals.reduce((sum, signal) => sum + signal.covenantScore, 0) / Math.max(signals.length, 1))
+  const averageScore = average(signals.map((signal) => signal.covenantScore))
 
   return {
     highestPressure,
@@ -47,14 +49,6 @@ export function summarizeCapitalCovenants(signals: CapitalCovenantSignal[]) {
     averageScore,
     headline: highestPressure ? `${highestPressure.asset} is closest to covenant pressure` : 'No covenant pressure detected',
   }
-}
-
-function parsePercent(value: string) {
-  return Number(value.replace('%', '')) || 0
-}
-
-function parseCurrencyMillions(value: string) {
-  return Number(value.replace('$', '').replace('M', '')) || 0
 }
 
 function buildNextMove(posture: CapitalCovenantSignal['lenderPosture'], asset: string) {
@@ -70,6 +64,3 @@ function buildTriggers(row: PermitPulseInput, permitRisk: number, covenantScore:
   return triggers
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}

@@ -1,3 +1,5 @@
+import { average, clamp, formatMoneyMillions, highestBy, parseCurrencyMillions, parsePercent, sanitizeAssetRows, type UnderwritingRow } from '@/lib/decision-utils'
+
 export type PermitPulseInput = {
   asset: string
   city: string
@@ -5,6 +7,8 @@ export type PermitPulseInput = {
   confidence: string
   status: string
 }
+
+export type { UnderwritingRow }
 
 export type PermitPulseSignal = {
   asset: string
@@ -25,7 +29,7 @@ const cityStageProfile: Record<string, Pick<PermitPulseSignal, 'deadlineWindow' 
 }
 
 export function generatePermitPulse(rows: PermitPulseInput[]): PermitPulseSignal[] {
-  return rows.map((row, index) => {
+  return sanitizeAssetRows(rows).map((row, index) => {
     const confidence = parsePercent(row.confidence)
     const value = parseCurrencyMillions(row.value)
     const stageProfile = cityStageProfile[row.city] || { deadlineWindow: '30 days', permitStage: 'municipal review' }
@@ -51,9 +55,9 @@ export function generatePermitPulse(rows: PermitPulseInput[]): PermitPulseSignal
 }
 
 export function summarizePermitPulse(signals: PermitPulseSignal[]) {
-  const highestRisk = [...signals].sort((first, second) => second.riskScore - first.riskScore)[0]
+  const highestRisk = highestBy(signals, (signal) => signal.riskScore)
   const accelerated = signals.filter((signal) => signal.signal === 'accelerate').length
-  const averageRisk = Math.round(signals.reduce((sum, signal) => sum + signal.riskScore, 0) / Math.max(signals.length, 1))
+  const averageRisk = average(signals.map((signal) => signal.riskScore))
 
   return {
     highestRisk,
@@ -63,18 +67,9 @@ export function summarizePermitPulse(signals: PermitPulseSignal[]) {
   }
 }
 
-function parsePercent(value: string) {
-  return Number(value.replace('%', '')) || 0
-}
-
-function parseCurrencyMillions(value: string) {
-  const normalized = value.replace('$', '').replace('M', '')
-  return Number(normalized) || 0
-}
-
 function formatValueAtRisk(valueInMillions: number, riskScore: number) {
   const valueAtRisk = valueInMillions * (riskScore / 100) * 0.18
-  return `$${valueAtRisk.toFixed(2)}M`
+  return formatMoneyMillions(valueAtRisk)
 }
 
 function buildControlAction(signal: PermitPulseSignal['signal'], city: string) {
@@ -90,6 +85,3 @@ function buildDrivers(row: PermitPulseInput, riskScore: number) {
   return drivers
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}

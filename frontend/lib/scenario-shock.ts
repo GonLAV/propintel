@@ -1,4 +1,5 @@
 import { generateCapitalCovenantRadar } from '@/lib/capital-covenant'
+import { average, clamp, highestBy, parseCurrencyMillions, parsePercent, sanitizeAssetRows } from '@/lib/decision-utils'
 import { generatePermitPulse, type PermitPulseInput } from '@/lib/permit-pulse'
 
 export type ShockScenario = {
@@ -26,11 +27,12 @@ export const shockScenarios: ShockScenario[] = [
 ]
 
 export function generateScenarioShockMatrix(rows: PermitPulseInput[]) {
-  const permitSignals = generatePermitPulse(rows)
-  const covenantSignals = generateCapitalCovenantRadar(rows)
+  const safeRows = sanitizeAssetRows(rows)
+  const permitSignals = generatePermitPulse(safeRows)
+  const covenantSignals = generateCapitalCovenantRadar(safeRows)
 
   return shockScenarios.map((scenario) => {
-    const results = rows.map((row, index) => {
+    const results = safeRows.map((row, index) => {
       const confidence = parsePercent(row.confidence)
       const value = parseCurrencyMillions(row.value)
       const permitRisk = permitSignals[index]?.riskScore || 40
@@ -53,7 +55,7 @@ export function generateScenarioShockMatrix(rows: PermitPulseInput[]) {
     return {
       scenario,
       results,
-      firstToBreak: [...results].sort((first, second) => second.breakScore - first.breakScore)[0],
+      firstToBreak: highestBy(results, (result) => result.breakScore),
     }
   })
 }
@@ -61,8 +63,8 @@ export function generateScenarioShockMatrix(rows: PermitPulseInput[]) {
 export function summarizeScenarioShockMatrix(rows: PermitPulseInput[]) {
   const matrix = generateScenarioShockMatrix(rows)
   const allResults = matrix.flatMap((entry) => entry.results)
-  const highestBreak = [...allResults].sort((first, second) => second.breakScore - first.breakScore)[0]
-  const averageBreakScore = Math.round(allResults.reduce((sum, result) => sum + result.breakScore, 0) / Math.max(allResults.length, 1))
+  const highestBreak = highestBy(allResults, (result) => result.breakScore)
+  const averageBreakScore = average(allResults.map((result) => result.breakScore))
 
   return {
     matrix,
@@ -70,14 +72,6 @@ export function summarizeScenarioShockMatrix(rows: PermitPulseInput[]) {
     averageBreakScore,
     scenarioCount: matrix.length,
   }
-}
-
-function parsePercent(value: string) {
-  return Number(value.replace('%', '')) || 0
-}
-
-function parseCurrencyMillions(value: string) {
-  return Number(value.replace('$', '').replace('M', '')) || 0
 }
 
 function findFirstBreak(scenario: ShockScenario, permitRisk: number, covenantRisk: number) {
@@ -93,6 +87,3 @@ function buildBoardMove(breakScore: number, asset: string) {
   return `Keep ${asset} in standard review with weekly signal refresh.`
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
-}
