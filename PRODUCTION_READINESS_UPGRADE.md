@@ -84,16 +84,6 @@ Why: open CORS and unbounded request sizes are not acceptable for a real API, es
 
 ### Safer File Persistence
 
-
-## Test Discovery Hygiene
-
-Root Vitest now only discovers tests under `src/**/*.test.{ts,tsx}` and explicitly excludes generated worktree copies and the separate SaaS backend package. This keeps `npm run test` focused on the Spark frontend/root TypeScript test suite instead of accidentally running duplicated `__wt` files or Jest-oriented backend tests.
-
-## Production Build Reliability
-
-The Vite build was hanging while transforming the `@phosphor-icons/react` barrel, which imports the entire CSR icon set plus the SSR bundle. The root Vite config now rewrites named Phosphor imports to per-icon CSR subpath imports during build, preserving the Spark icon fallback proxy while avoiding the full barrel transform cost.
-
-Tailwind source scanning is also explicitly bounded to the root frontend app. The unused raw `coarse`, `fine`, and `pwa` screen aliases were removed because Tailwind v4 was applying them as invalid `.container` breakpoints.
 `backend/persistence.mjs` now writes ingestion history atomically through a temporary file and caps retained runs.
 
 Before:
@@ -110,6 +100,35 @@ await fsp.rename(tempPath, ingestionRunsPath)
 ```
 
 Why: direct writes can leave a corrupted JSON file if the process exits mid-write.
+
+## Test Discovery Hygiene
+
+Root Vitest now only discovers tests under `src/**/*.test.{ts,tsx}` and explicitly excludes generated worktree copies and the separate SaaS backend package. This keeps `npm run test` focused on the Spark frontend/root TypeScript test suite instead of accidentally running duplicated `__wt` files or Jest-oriented backend tests.
+
+## Production Build Reliability
+
+The Vite build was hanging while transforming the `@phosphor-icons/react` barrel, which imports the entire CSR icon set plus the SSR bundle. The root Vite config now rewrites named Phosphor imports to per-icon CSR subpath imports during build, preserving the Spark icon fallback proxy while avoiding the full barrel transform cost.
+
+Tailwind source scanning is also explicitly bounded to the root frontend app. The unused raw `coarse`, `fine`, and `pwa` screen aliases were removed because Tailwind v4 was applying them as invalid `.container` breakpoints.
+
+## Release Quality Gates
+
+The repository now uses `.github/workflows/ci-cd.yml` as the canonical pull-request gate. It can also be run manually with `workflow_dispatch` before a release.
+
+The workflow validates:
+
+- Root Spark app: `npm ci`, `npm run lint`, `npm test`, and `npm audit --audit-level=moderate`
+- Premium frontend: `npm ci`, `npm run test`, `npm run typecheck`, `npm run security`, and `npm run build`
+- Mobile app: `npm ci`, `npm run typecheck`, and `npm audit --audit-level=moderate`
+- SaaS backend: `npm ci`, `npm run lint`, `npm run test:coverage`, and `npm audit --audit-level=moderate`
+
+`.github/workflows/codeql.yml` runs JavaScript/TypeScript CodeQL with `security-extended` and `security-and-quality` queries on pushes, pull requests, a weekly schedule, and manual dispatch.
+
+Both workflows use concurrency cancellation so newer pushes supersede stale runs for the same PR or branch. Dependabot is configured for the root app, `frontend/`, `mobile/`, `saas-backend/`, GitHub Actions, and devcontainers.
+
+## Security Disclosure Policy
+
+`SECURITY.md` is project-specific and directs maintainers to keep vulnerability reports private, avoid production data in reproductions, rotate secrets after suspected exposure, and validate fixes through the CI and CodeQL gates.
 
 ## Production Gaps Still To Close
 
