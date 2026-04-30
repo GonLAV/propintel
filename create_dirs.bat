@@ -1,0 +1,16 @@
+@echo off
+cd /d "c:\Users\gons\OneDrive - BOLT Solutions\Documents\shumagon-goni"
+mkdir "saas-backend\src\config"
+mkdir "saas-backend\src\api\v1\routes"
+mkdir "saas-backend\src\api\v1\controllers"
+mkdir "saas-backend\src\api\v1\services"
+mkdir "saas-backend\src\api\v1\repositories"
+mkdir "saas-backend\src\api\v1\validators"
+mkdir "saas-backend\src\middleware"
+mkdir "saas-backend\src\utils"
+mkdir "saas-backend\src\db"
+mkdir "saas-backend\sql"
+mkdir "saas-backend\tests\unit"
+mkdir "saas-backend\tests\integration"
+mkdir ".github\workflows"
+echo Directories created successfully

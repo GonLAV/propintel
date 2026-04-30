@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "DiraShield",
+    "slug": "dirashield",
+    "scheme": "dirashield",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.propintel.dirashield",
+      "infoPlist": {
+        "NSCameraUsageDescription": "DiraShield uses the camera to capture rental dispute evidence.",
+        "NSPhotoLibraryUsageDescription": "DiraShield lets you attach existing photos as rental dispute evidence."
+      }
+    },
+    "android": {
+      "package": "com.propintel.dirashield",
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"],
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1220"
+      }
+    },
+    "extra": {
+      "apiBaseUrl": "https://api.dirashield.co.il/v1"
+    }
+  }
+}

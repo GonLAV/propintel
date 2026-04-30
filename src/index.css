@@ -1,6 +1,13 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
 
+@source "../index.html";
+@source "./";
+@source not "../saas-backend";
+@source not "../backend";
+@source not "../dist";
+@source not "../node_modules";
+
 @layer base {
   * {
     @apply border-border

@@ -3,6 +3,7 @@ import path from 'node:path'
 
 const dataDir = path.resolve(process.cwd(), 'backend/.data')
 const ingestionRunsPath = path.join(dataDir, 'ingestion-runs.json')
+const ingestionRunsRetention = Number(process.env.INGESTION_RUNS_RETENTION || 500)
 
 export async function ensurePersistence() {
   await fsp.mkdir(dataDir, { recursive: true })
@@ -23,6 +24,11 @@ export async function saveIngestionRun(run) {
   } else {
     doc.runs.push(run)
   }
+
+  doc.runs = doc.runs
+    .slice()
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, ingestionRunsRetention)
 
   await writeDoc(doc)
   return run
@@ -79,5 +85,7 @@ async function readDoc() {
 }
 
 async function writeDoc(doc) {
-  await fsp.writeFile(ingestionRunsPath, JSON.stringify(doc, null, 2), 'utf8')
+  const tempPath = `${ingestionRunsPath}.${process.pid}.${Date.now()}.tmp`
+  await fsp.writeFile(tempPath, JSON.stringify(doc, null, 2), 'utf8')
+  await fsp.rename(tempPath, ingestionRunsPath)
 }

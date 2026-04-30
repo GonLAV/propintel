@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { createAPIClient, type V1IngestionRunRequest, type V1IngestionRunResponse } from '@/lib/apiClient'
+import { getMvpApiBaseUrl } from '@/lib/runtimeConfig'
 
 const samplePayload: V1IngestionRunRequest = {
   createdBy: 'manual-ui',
@@ -40,9 +41,7 @@ const samplePayload: V1IngestionRunRequest = {
 }
 
 export default function IngestionHelper() {
-  const apiBaseURL =
-    (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ??
-    'http://localhost:3001'
+  const apiBaseURL = getMvpApiBaseUrl()
   const apiClient = useMemo(() => createAPIClient(apiBaseURL), [apiBaseURL])
 
   const [payloadText, setPayloadText] = useState(JSON.stringify(samplePayload, null, 2))

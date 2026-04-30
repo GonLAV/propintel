@@ -21,6 +21,7 @@ import {
   type GroundedReportInput,
 } from '@/lib/aiReportGenerator'
 import { createAPIClient, type V1ReportGenerateResponse, type V1ValuationResponse } from '@/lib/apiClient'
+import { getMvpApiBaseUrl } from '@/lib/runtimeConfig'
 
 interface AdjustmentMultipliers {
   parking: number
@@ -249,9 +250,7 @@ export function AIComparableReportStudioLive() {
   const [runHistory, setRunHistory] = useKV<PersistedRunArtifact[]>('ai-comp-run-history', [])
   const [reportHistory, setReportHistory] = useKV<PersistedReportArtifact[]>('ai-report-history', [])
 
-  const apiBaseURL =
-    (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ??
-    'http://localhost:3001'
+  const apiBaseURL = getMvpApiBaseUrl()
 
   const apiClient = useMemo(() => createAPIClient(apiBaseURL), [apiBaseURL])
 

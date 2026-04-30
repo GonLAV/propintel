@@ -8,7 +8,16 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      '**/dist/**',
       'node_modules/**',
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/.expo/**',
+      '**/out/**',
+      '**/coverage/**',
+      'backend/.data/**',
+      'saas-backend/**',
+      '**/__wt/**',
       'pids/**',
       'packages/**/dist/**',
       '**/*.min.*'
@@ -50,6 +59,12 @@ export default tseslint.config(
   },
   {
     files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    }
+  },
+  {
+    files: ['frontend/app/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     }
