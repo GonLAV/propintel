@@ -44,6 +44,11 @@
       "name": "caleb-gen",
       "version": "1.0.0",
       "source": "./caleb-gen"
+    },
+    {
+      "name": "chur-gen",
+      "version": "1.0.0",
+      "source": "./chur-gen"
     }
   ],
   "name": "local-desktop-app-uploads",

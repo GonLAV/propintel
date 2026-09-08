@@ -1,0 +1,6 @@
+{
+  "name": "chur-gen",
+  "version": "1.0.0",
+  "description": "חוּר — מתאם ההנהלה של מערך סוכני PropIntel. קורא את כל agent-hq, מזהה סתירות/כפילויות בין הסוכנים, קובע סדר עדיפויות, ומעלה למשתמש/ת מה שדורש הכרעה שלו/ה בלבד.",
+  "keywords": ["partner-agent", "coordinator", "management", "propintel", "hebrew"]
+}
