@@ -1,4 +1,3 @@
-/* eslint-env node */
 // Scan GISN docs page(s) for PDF links by plan id(s)
 // Usage:
 //   node scripts/gisn-docs-scan.mjs 6177 6400 1234

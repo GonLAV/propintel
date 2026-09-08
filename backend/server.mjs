@@ -10,10 +10,22 @@ import {
 } from './persistence.mjs'
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = Number(process.env.PORT || 3001)
+const JSON_LIMIT = process.env.JSON_LIMIT || '2mb'
+const MAX_INGESTION_RECORDS = Number(process.env.MAX_INGESTION_RECORDS || 1000)
+const MAX_COMPARABLES_POOL = Number(process.env.MAX_COMPARABLES_POOL || 2000)
+const MAX_REPORT_FACTS = Number(process.env.MAX_REPORT_FACTS || 100)
+const MEMORY_RETENTION_LIMIT = Number(process.env.MEMORY_RETENTION_LIMIT || 500)
+const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:5001,http://localhost:3000')
 
-app.use(cors())
-app.use(express.json({ limit: '10mb' }))
+app.disable('x-powered-by')
+app.use(requestContext)
+app.use(securityHeaders)
+app.use(cors({
+  origin: corsOrigin,
+  maxAge: 600,
+}))
+app.use(express.json({ limit: JSON_LIMIT }))
 
 const comparableRuns = new Map()
 const reports = new Map()
@@ -44,21 +56,20 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-app.get('/api/v1/health/db', async (_req, res) => {
+app.get('/api/v1/health/db', asyncHandler(async (_req, res) => {
   const health = await checkPersistenceHealth()
   if (health.status === 'error') {
     return res.status(500).json(health)
   }
   return res.json(health)
-})
+}))
 
 // --- Ingestion pipeline -----------------------------------------------------
-app.post('/api/v1/ingestion/run', async (req, res) => {
-  const { transactions = [], listings = [], createdBy = 'system' } = req.body || {}
+app.post('/api/v1/ingestion/run', asyncHandler(async (req, res) => {
+  const validation = validateIngestionRequest(req.body)
+  if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
-  if (!Array.isArray(transactions) || !Array.isArray(listings)) {
-    return res.status(400).json({ error: 'transactions and listings must be arrays' })
-  }
+  const { transactions, listings, createdBy } = validation.value
 
   const runId = `ing_${crypto.randomUUID()}`
   const started = Date.now()
@@ -95,9 +106,9 @@ app.post('/api/v1/ingestion/run', async (req, res) => {
   })
 
   return res.json(payload)
-})
+}))
 
-app.get('/api/v1/ingestion/runs', async (_req, res) => {
+app.get('/api/v1/ingestion/runs', asyncHandler(async (_req, res) => {
   const runs = (await listPersistedIngestionRuns(100))
     .map((x) => ({
       runId: x.runId,
@@ -108,20 +119,21 @@ app.get('/api/v1/ingestion/runs', async (_req, res) => {
     }))
 
   return res.json({ count: runs.length, runs })
-})
+}))
 
-app.get('/api/v1/ingestion/:runId', async (req, res) => {
+app.get('/api/v1/ingestion/:runId', asyncHandler(async (req, res) => {
+  if (!isSafeToken(req.params.runId, 'ing_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
   const run = await getPersistedIngestionRun(req.params.runId)
-  if (!run) return res.status(404).json({ error: 'Ingestion run not found' })
+  if (!run) return sendError(res, 404, 'NOT_FOUND', 'Ingestion run not found')
   return res.json(run)
-})
+}))
 
 // --- Comparable search ------------------------------------------------------
 app.post('/api/v1/comparables/search', (req, res) => {
-  const { subject, comparablesPool = [], topK = 25, requestedBy = 'system' } = req.body || {}
-  if (!subject || !Array.isArray(comparablesPool)) {
-    return res.status(400).json({ error: 'subject and comparablesPool are required' })
-  }
+  const validation = validateComparableSearchRequest(req.body)
+  if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
+
+  const { subject, comparablesPool, topK, requestedBy } = validation.value
 
   const runId = `run_${crypto.randomUUID()}`
   const started = Date.now()
@@ -178,16 +190,18 @@ app.post('/api/v1/comparables/search', (req, res) => {
 
 app.post('/api/v1/comparables/:runId/adjustments/override', (req, res) => {
   const { runId } = req.params
-  const { candidateId, patch, appraiserId, reason } = req.body || {}
+  if (!isSafeToken(runId, 'run_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
+
+  const validation = validateAdjustmentOverrideRequest(req.body)
+  if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
+
+  const { candidateId, patch, appraiserId, reason } = validation.value
   const run = comparableRuns.get(runId)
 
-  if (!run) return res.status(404).json({ error: 'Comparable run not found' })
-  if (!candidateId || !patch || !appraiserId || !reason) {
-    return res.status(400).json({ error: 'candidateId, patch, appraiserId, and reason are required' })
-  }
+  if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
 
   const idx = run.comparables.findIndex((x) => x.candidateId === candidateId)
-  if (idx < 0) return res.status(404).json({ error: 'Candidate not found in run' })
+  if (idx < 0) return sendError(res, 404, 'NOT_FOUND', 'Candidate not found in run')
 
   const current = run.comparables[idx]
   const next = {
@@ -237,13 +251,13 @@ app.post('/api/v1/comparables/:runId/adjustments/override', (req, res) => {
 // --- Valuation --------------------------------------------------------------
 app.post('/api/v1/valuations/estimate', (req, res) => {
   const { runId, strategy = 'weighted-mean' } = req.body || {}
-  if (!runId) return res.status(400).json({ error: 'runId is required' })
+  if (!isSafeToken(runId, 'run_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
   if (!valuationStrategies.has(strategy)) {
-    return res.status(400).json({ error: 'strategy must be mean | weighted-mean | hedonic' })
+    return sendError(res, 400, 'BAD_REQUEST', 'strategy must be mean | weighted-mean | hedonic')
   }
 
   const run = comparableRuns.get(runId)
-  if (!run) return res.status(404).json({ error: 'Comparable run not found' })
+  if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
 
   const result = calculateValuation(run.comparables, strategy)
   pushAudit('valuation', runId, 'create', { strategy, result })
@@ -254,7 +268,7 @@ app.post('/api/v1/valuations/estimate', (req, res) => {
 app.post('/api/valuations', (req, res) => {
   const { propertyId, method } = req.body || {}
   if (!propertyId || !method) {
-    return res.status(400).json({ error: 'propertyId and method required' })
+    return sendError(res, 400, 'BAD_REQUEST', 'propertyId and method required')
   }
   const result = {
     propertyId,
@@ -269,21 +283,13 @@ app.post('/api/valuations', (req, res) => {
 
 // --- Report generation ------------------------------------------------------
 app.post('/api/v1/reports/generate', (req, res) => {
-  const {
-    subjectProperty,
-    runId,
-    templateId = 'default-court-il',
-    language = 'he',
-    documentFacts = [],
-    imageEvidence = [],
-  } = req.body || {}
+  const validation = validateReportGenerateRequest(req.body)
+  if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
-  if (!subjectProperty || !runId) {
-    return res.status(400).json({ error: 'subjectProperty and runId are required' })
-  }
+  const { subjectProperty, runId, templateId, language, documentFacts, imageEvidence } = validation.value
 
   const run = comparableRuns.get(runId)
-  if (!run) return res.status(404).json({ error: 'Comparable run not found' })
+  if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
 
   const valuation = calculateValuation(run.comparables, 'weighted-mean')
   const sections = buildReportSections({
@@ -315,23 +321,26 @@ app.post('/api/v1/reports/generate', (req, res) => {
 })
 
 app.post('/api/v1/reports/:reportId/validate', (req, res) => {
+  if (!isSafeToken(req.params.reportId, 'report_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid reportId')
   const report = reports.get(req.params.reportId)
-  if (!report) return res.status(404).json({ error: 'Report not found' })
+  if (!report) return sendError(res, 404, 'NOT_FOUND', 'Report not found')
 
   const status = report.validations.some((x) => x.severity === 'error') ? 'fail' : 'pass'
   return res.json({ reportId: req.params.reportId, status, issues: report.validations })
 })
 
 app.post('/api/v1/reports/:reportId/finalize', (req, res) => {
+  if (!isSafeToken(req.params.reportId, 'report_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid reportId')
   const report = reports.get(req.params.reportId)
-  if (!report) return res.status(404).json({ error: 'Report not found' })
-  const { appraiserId, approvalComment } = req.body || {}
+  if (!report) return sendError(res, 404, 'NOT_FOUND', 'Report not found')
+  const appraiserId = sanitizeToken(req.body?.appraiserId, 120)
+  const approvalComment = sanitizeString(req.body?.approvalComment, 1000)
   if (!appraiserId || !approvalComment) {
-    return res.status(400).json({ error: 'appraiserId and approvalComment are required' })
+    return sendError(res, 400, 'BAD_REQUEST', 'appraiserId and approvalComment are required')
   }
 
   if (report.validations.some((x) => x.severity === 'error')) {
-    return res.status(409).json({ error: 'Report has validation errors and cannot be finalized' })
+    return sendError(res, 409, 'CONFLICT', 'Report has validation errors and cannot be finalized')
   }
 
   const finalized = {
@@ -605,6 +614,9 @@ function pushAudit(entityType, entityId, eventType, payload) {
     payload,
     createdAt: new Date().toISOString(),
   })
+  trimMap(comparableRuns, MEMORY_RETENTION_LIMIT)
+  trimMap(reports, MEMORY_RETENTION_LIMIT)
+  trimArray(auditEvents, MEMORY_RETENTION_LIMIT)
 }
 
 function monthsAgo(date) {
@@ -657,6 +669,206 @@ function weightedAvg(items) {
   }
   return total > 0 ? weighted / total : 0
 }
+
+function requestContext(req, res, next) {
+  const incoming = req.headers['x-request-id']
+  const id = typeof incoming === 'string' && /^[A-Za-z0-9._-]{8,128}$/.test(incoming)
+    ? incoming
+    : crypto.randomUUID()
+  req.id = id
+  res.setHeader('x-request-id', id)
+  next()
+}
+
+function securityHeaders(_req, res, next) {
+  res.setHeader('x-content-type-options', 'nosniff')
+  res.setHeader('referrer-policy', 'no-referrer')
+  res.setHeader('x-frame-options', 'DENY')
+  res.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=()')
+  next()
+}
+
+function parseAllowedOrigins(value) {
+  return String(value).split(',').map((x) => x.trim()).filter(Boolean)
+}
+
+function corsOrigin(origin, callback) {
+  if (!origin) return callback(null, true)
+  if (ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)) return callback(null, true)
+  return callback(new Error(`Origin ${origin} not allowed`))
+}
+
+function asyncHandler(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
+}
+
+function sendError(res, status, code, message, details) {
+  return res.status(status).json({
+    error: {
+      code,
+      message,
+      requestId: res.req?.id,
+      ...(details ? { details } : {}),
+    },
+  })
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function sanitizeString(value, maxLength = 255) {
+  if (value === undefined || value === null) return ''
+  return stripControlChars(String(value))
+    .trim()
+    .slice(0, maxLength)
+}
+
+function stripControlChars(value) {
+  return [...value].filter((char) => {
+    const code = char.charCodeAt(0)
+    return code >= 32 && code !== 127
+  }).join('')
+}
+
+function sanitizeToken(value, maxLength = 160) {
+  const text = sanitizeString(value, maxLength)
+  return /^[A-Za-z0-9._:-]+$/.test(text) ? text : ''
+}
+
+function isSafeToken(value, prefix) {
+  return typeof value === 'string' && value.startsWith(prefix) && /^[A-Za-z0-9._:-]+$/.test(value) && value.length <= 160
+}
+
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : fallback
+}
+
+function validateIngestionRequest(body) {
+  if (!isPlainObject(body)) return { ok: false, error: 'Request body must be an object' }
+  const transactions = body.transactions ?? []
+  const listings = body.listings ?? []
+  if (!Array.isArray(transactions) || !Array.isArray(listings)) {
+    return { ok: false, error: 'transactions and listings must be arrays' }
+  }
+  if (transactions.length + listings.length > MAX_INGESTION_RECORDS) {
+    return { ok: false, error: `Too many records. Maximum is ${MAX_INGESTION_RECORDS}` }
+  }
+  return {
+    ok: true,
+    value: {
+      transactions,
+      listings,
+      createdBy: sanitizeToken(body.createdBy, 120) || 'system',
+    },
+  }
+}
+
+function validateComparableSearchRequest(body) {
+  if (!isPlainObject(body)) return { ok: false, error: 'Request body must be an object' }
+  if (!isPlainObject(body.subject)) return { ok: false, error: 'subject is required' }
+  if (!Array.isArray(body.comparablesPool)) return { ok: false, error: 'comparablesPool must be an array' }
+  if (body.comparablesPool.length > MAX_COMPARABLES_POOL) {
+    return { ok: false, error: `comparablesPool exceeds maximum of ${MAX_COMPARABLES_POOL}` }
+  }
+
+  const topK = clamp(Math.trunc(toFiniteNumber(body.topK, 25)), 1, 100)
+  const subject = sanitizePropertyLike(body.subject)
+  const comparablesPool = body.comparablesPool.map(sanitizePropertyLike).filter((x) => x.id)
+
+  return {
+    ok: true,
+    value: {
+      subject,
+      comparablesPool,
+      topK,
+      requestedBy: sanitizeToken(body.requestedBy, 120) || 'system',
+    },
+  }
+}
+
+function sanitizePropertyLike(input) {
+  const source = isPlainObject(input) ? input : {}
+  return {
+    ...source,
+    id: sanitizeToken(source.id, 120) || `item_${crypto.randomUUID()}`,
+    address: sanitizeString(source.address, 255),
+    city: sanitizeString(source.city, 120),
+    propertyType: sanitizeString(source.propertyType, 80),
+    renovationState: sanitizeString(source.renovationState, 80),
+    lat: toFiniteNumber(source.lat, 0),
+    lng: toFiniteNumber(source.lng, 0),
+    sizeSqm: clamp(toFiniteNumber(source.sizeSqm, 0), 0, 1000000),
+    floor: clamp(toFiniteNumber(source.floor, 0), -10, 300),
+    buildingAge: clamp(toFiniteNumber(source.buildingAge, 0), 0, 300),
+    conditionScore: clamp(toFiniteNumber(source.conditionScore, 5), 0, 10),
+    planningPotentialScore: clamp(toFiniteNumber(source.planningPotentialScore, 0), 0, 10),
+    noiseLevel: clamp(toFiniteNumber(source.noiseLevel, 5), 0, 10),
+    salePrice: clamp(toFiniteNumber(source.salePrice, 0), 0, 10000000000),
+    saleDate: sanitizeString(source.saleDate, 40),
+    hasElevator: Boolean(source.hasElevator),
+    hasParking: Boolean(source.hasParking),
+    hasBalcony: Boolean(source.hasBalcony),
+    hasView: Boolean(source.hasView),
+  }
+}
+
+function validateAdjustmentOverrideRequest(body) {
+  if (!isPlainObject(body)) return { ok: false, error: 'Request body must be an object' }
+  const candidateId = sanitizeToken(body.candidateId, 160)
+  const appraiserId = sanitizeToken(body.appraiserId, 120)
+  const reason = sanitizeString(body.reason, 1000)
+  if (!candidateId || !appraiserId || !reason) {
+    return { ok: false, error: 'candidateId, appraiserId, and reason are required' }
+  }
+  if (!isPlainObject(body.patch)) return { ok: false, error: 'patch must be an object' }
+
+  const allowed = ['floor', 'elevator', 'renovation', 'balcony', 'parking', 'view', 'noise', 'size', 'planningPotential', 'mlResidual']
+  const patch = {}
+  for (const key of allowed) {
+    if (body.patch[key] !== undefined) patch[key] = clamp(toFiniteNumber(body.patch[key], 0), -0.25, 0.25)
+  }
+  return { ok: true, value: { candidateId, appraiserId, reason, patch } }
+}
+
+function validateReportGenerateRequest(body) {
+  if (!isPlainObject(body)) return { ok: false, error: 'Request body must be an object' }
+  if (!isPlainObject(body.subjectProperty)) return { ok: false, error: 'subjectProperty is required' }
+  if (!isSafeToken(body.runId, 'run_')) return { ok: false, error: 'Invalid runId' }
+
+  const documentFacts = Array.isArray(body.documentFacts) ? body.documentFacts.slice(0, MAX_REPORT_FACTS) : []
+  const imageEvidence = Array.isArray(body.imageEvidence) ? body.imageEvidence.slice(0, MAX_REPORT_FACTS) : []
+  return {
+    ok: true,
+    value: {
+      subjectProperty: sanitizePropertyLike(body.subjectProperty),
+      runId: body.runId,
+      templateId: ['default-court-il', 'bank-il', 'private-client'].includes(body.templateId) ? body.templateId : 'default-court-il',
+      language: body.language === 'en' ? 'en' : 'he',
+      documentFacts,
+      imageEvidence,
+    },
+  }
+}
+
+function trimMap(map, maxSize) {
+  while (map.size > maxSize) {
+    const first = map.keys().next().value
+    map.delete(first)
+  }
+}
+
+function trimArray(array, maxSize) {
+  if (array.length > maxSize) array.splice(0, array.length - maxSize)
+}
+
+app.use((err, req, res, _next) => {
+  const isCors = err instanceof Error && err.message.includes('not allowed')
+  const status = isCors ? 403 : 500
+  console.error(`[${req.id || 'no-request-id'}]`, err)
+  return sendError(res, status, isCors ? 'FORBIDDEN' : 'INTERNAL_ERROR', isCors ? err.message : 'Internal server error')
+})
 
 app.listen(PORT, () => {
   console.log(`✓ Backend server running on http://localhost:${PORT}`)

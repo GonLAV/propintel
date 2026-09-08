@@ -1,31 +1,43 @@
-Thanks for helping make GitHub safe for everyone.
+# Security Policy
 
-# Security
+PropIntel handles appraisal, property, finance, and workflow data. Treat all vulnerability reports and suspected data exposure as sensitive.
 
-GitHub takes the security of our software products and services seriously, including all of the open source code repositories managed through our GitHub organizations, such as [GitHub](https://github.com/GitHub).
+## Supported Branches
 
-Even though [open source repositories are outside of the scope of our bug bounty program](https://bounty.github.com/index.html#scope) and therefore not eligible for bounty rewards, we will ensure that your finding gets passed along to the appropriate maintainers for remediation. 
+Security fixes are prioritized for `main` and active release branches. Feature branches may receive security changes when the issue affects code that is planned for merge.
 
-## Reporting Security Issues
+## Reporting A Vulnerability
 
-If you believe you have found a security vulnerability in any GitHub-owned repository, please report it to us through coordinated disclosure.
+Do not open a public GitHub issue, discussion, or pull request for a security vulnerability.
 
-**Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
+Use GitHub private vulnerability reporting for this repository when available. If private reporting is unavailable, contact the repository owner directly and include only the minimum sensitive detail needed to triage the issue.
 
-Instead, please send an email to opensource-security[@]github.com.
+Include:
 
-Please include as much of the information listed below as you can to help us better understand and resolve the issue:
+- Affected package or surface: root Spark app, `frontend/`, `mobile/`, `backend/`, or `saas-backend/`
+- Vulnerability class, such as authentication bypass, injection, XSS, SSRF, insecure direct object reference, or sensitive data exposure
+- Reproduction steps using non-production data
+- Impact assessment and affected roles or tenants
+- Relevant commit, branch, endpoint, or route
 
-  * The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
-  * Full paths of source file(s) related to the manifestation of the issue
-  * The location of the affected source code (tag/branch/commit or direct URL)
-  * Any special configuration required to reproduce the issue
-  * Step-by-step instructions to reproduce the issue
-  * Proof-of-concept or exploit code (if possible)
-  * Impact of the issue, including how an attacker might exploit the issue
+## Handling Standards
 
-This information will help us triage your report more quickly.
+- Triage high-impact reports within 2 business days.
+- Avoid sharing exploit details outside maintainers until a fix is available.
+- Patch root cause first, then add regression tests or automated checks.
+- Rotate secrets immediately if credentials, tokens, cookies, API keys, or encryption keys may have been exposed.
+- Validate fixes through the quality gates in `.github/workflows/ci-cd.yml` and CodeQL in `.github/workflows/codeql.yml`.
 
-## Policy
+## Security Baseline
 
-See [GitHub's Safe Harbor Policy](https://docs.github.com/en/site-policy/security-policies/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
+Before release, maintainers must confirm:
+
+- Authentication and authorization are enforced on protected surfaces.
+- User-controlled input is validated with typed schemas or bounded sanitizers.
+- No logs, client payloads, audit events, or screenshots expose secrets, tokens, private keys, or raw sensitive financial data.
+- CORS, cookies, session lifetime, rate limiting, and security headers are configured for the deployment environment.
+- Dependency audits and CodeQL are clean or have accepted, documented exceptions.
+
+## Test Data
+
+Use synthetic or explicitly anonymized data for security reports and reproduction. Do not submit real customer records, credentials, government identifiers, private addresses, or financial documents unless maintainers explicitly request a secure transfer method.

@@ -1,0 +1,65 @@
+openapi: 3.1.0
+info:
+  title: DiraShield API
+  version: 1.0.0
+servers:
+  - url: https://api.dirashield.co.il/v1
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/otp/start:
+    post:
+      security: []
+      summary: Start Israeli phone OTP login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneE164]
+              properties:
+                phoneE164: { type: string, pattern: '^\\+9725\\d{8}$' }
+      responses:
+        '202': { description: OTP sent }
+  /auth/otp/verify:
+    post:
+      security: []
+      summary: Verify OTP and receive tokens
+      responses:
+        '200': { description: JWT access and refresh token pair }
+  /cases:
+    get:
+      summary: List current user's rental cases
+      responses:
+        '200': { description: Case list }
+    post:
+      summary: Create a rental protection case
+      responses:
+        '201': { description: Created case }
+  /cases/{caseId}:
+    get:
+      summary: Get one case with evidence
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Case detail }
+  /cases/{caseId}/evidence:
+    post:
+      summary: Add signed evidence metadata after upload
+      responses:
+        '201': { description: Evidence attached }
+  /cases/{caseId}/letter:
+    post:
+      summary: Generate formal Hebrew letter from case facts
+      responses:
+        '200': { description: Letter draft }

@@ -1,4 +1,3 @@
-/* eslint-env node */
 // GISN/TABA PDF ingestion utility (ESM).
 // - Scans input dir (default: public/gisn)
 // - Extracts text from PDFs via pdf-parse
