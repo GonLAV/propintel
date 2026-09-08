@@ -39,6 +39,11 @@
       "name": "elazar-gen",
       "version": "1.0.0",
       "source": "./elazar-gen"
+    },
+    {
+      "name": "caleb-gen",
+      "version": "1.0.0",
+      "source": "./caleb-gen"
     }
   ],
   "name": "local-desktop-app-uploads",
