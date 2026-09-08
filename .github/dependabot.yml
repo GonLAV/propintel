@@ -4,6 +4,46 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      npm-root-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "daily"
+    groups:
+      npm-frontend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/mobile"
+    schedule:
+      interval: "daily"
+    groups:
+      npm-mobile-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/saas-backend"
+    schedule:
+      interval: "daily"
+    groups:
+      npm-saas-backend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
 
   - package-ecosystem: "devcontainers"
     directory: "/"

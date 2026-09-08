@@ -107,12 +107,24 @@ Registration creates a signed mock JWT session. Replace the route handlers with 
 
 The `dashboard/deal-twin` workspace is a founder-grade decision simulator. Instead of only reporting valuation outputs, it asks the investment committee question directly: "what would need to be true for this deal to deserve capital?" It converts price, rent, capex, planning upside, debt, confidence, and risk into approval gates, counteroffer discipline, stress loss, and decisive next actions.
 
+`Permit Pulse` extends the dashboard with a planning-risk operating layer. It converts permit-stage uncertainty into pressure windows, value-at-risk, and control actions so appraisers and acquisition teams can act before planning drift changes the deal thesis.
+
+`Capital Covenant Radar` adds a lender-facing risk layer. It converts valuation confidence, permit pressure, and asset exposure into covenant pressure, LTV headroom, DSCR buffer, lender posture, and financing next moves before term-sheet drift surprises the team.
+
+`Scenario Shock Matrix` adds board-level downside intelligence. It stress-tests rate jumps, rent softness, and permit delays to show which asset breaks first, how much equity buffer remains, and what action should be taken before the market shock becomes real.
+
+`Review Defense Pack` adds valuation defensibility scoring. It checks whether each report has enough confidence, evidence coverage, planning context, financing sensitivity, and downside explanation to survive senior reviewer, lender, or audit scrutiny before external export.
+
+The dashboard decision engines share bounded parsing, sanitization, and scoring helpers in `lib/decision-utils.ts`. Production thresholds are configurable through `NEXT_PUBLIC_*_SCORE` environment variables listed in `.env.example`; audit logging is opt-in with `NEXT_PUBLIC_DECISION_AUDIT_LOGS=true` and emits only module names, counts, timestamps, and model version, never asset names or financial values.
+
 ## Security Checks
 
 ```bash
+npm run test
 npm run typecheck
 npm run build
 npm run security
 ```
 
 `npm run security` runs a local source scan for unsafe constructs and `npm audit --audit-level=moderate`.
+`npm run test` runs deterministic unit tests for the dashboard decision engines, including malformed input cases and bounded-score checks.

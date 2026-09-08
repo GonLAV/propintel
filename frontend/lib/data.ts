@@ -15,6 +15,26 @@ export const features = [
   },
   {
     icon: Radar,
+    title: 'Permit Pulse risk windows',
+    description: 'Detect planning-pressure windows, value-at-risk, and control actions before permit uncertainty quietly changes the deal thesis.',
+  },
+  {
+    icon: LockKeyhole,
+    title: 'Capital Covenant Radar',
+    description: 'Translate valuation confidence, permit pressure, and exposure into lender posture, LTV headroom, DSCR buffer, and financing next moves.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Scenario Shock Matrix',
+    description: 'Stress-test rate jumps, rent softness, and permit delays to reveal which asset breaks first and what the board should do next.',
+  },
+  {
+    icon: FileSearch,
+    title: 'Review Defense Pack',
+    description: 'Score whether each valuation can survive lender, audit, and senior-review scrutiny before the report leaves the team.',
+  },
+  {
+    icon: Radar,
     title: 'Market intelligence engine',
     description: 'Live comparable scoring, zoning signals, rental yield context, and confidence scoring in one operating layer.',
   },
