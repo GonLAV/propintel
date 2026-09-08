@@ -15,9 +15,15 @@ export function AppraiserShell({ children, userLabel }: { children: ReactNode; u
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-6 py-8">
       <header className="mb-8 flex items-center justify-between">
-        <Link href="/appraiser/properties" className="text-lg font-semibold text-white">
-          PropIntel <span className="text-teal-300">לשמאים</span>
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/appraiser/properties" className="text-lg font-semibold text-white">
+            PropIntel <span className="text-teal-300">לשמאים</span>
+          </Link>
+          <nav className="flex items-center gap-4 text-sm text-white/60">
+            <Link href="/appraiser/properties" className="transition hover:text-white">נכסים</Link>
+            <Link href="/appraiser/reports" className="transition hover:text-white">דוחות</Link>
+          </nav>
+        </div>
         {userLabel && (
           <div className="flex items-center gap-3 text-sm text-white/60">
             <span>{userLabel}</span>

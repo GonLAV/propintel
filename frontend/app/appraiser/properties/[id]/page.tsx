@@ -17,12 +17,17 @@ type Valuation = {
   confidence: string | null; currency: string; error: string | null
   result: { sampleSize?: number; landValueSource?: string } | null
 }
+type Report = {
+  id: string; title: string; format: string; created_at: string
+  valuation_summary: { method: string; estimatedValue: number | null; currency: string } | null
+}
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params)
   const [property, setProperty] = useState<Property | null>(null)
   const [comps, setComps] = useState<Comparable[]>([])
   const [valuations, setValuations] = useState<Valuation[]>([])
+  const [reports, setReports] = useState<Report[]>([])
   const [error, setError] = useState<string | null>(null)
   const [compForm, setCompForm] = useState({ areaSqm: '', salePrice: '', soldAt: '', floor: '', rooms: '' })
   const [addingComp, setAddingComp] = useState(false)
@@ -43,6 +48,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       }
       const v = await apiGet<{ items: Valuation[] }>(`/valuations?propertyId=${id}`)
       setValuations(v.items)
+      const r = await apiGet<{ items: Report[] }>(`/reports?propertyId=${id}`)
+      setReports(r.items)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בטעינת הנכס')
     }
@@ -103,6 +110,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       window.open(`/api/appraiser/reports/${report.id}/pdf`, '_blank')
       setReportFormFor(null)
       setReportForm({ clientName: '', purpose: '' })
+      const r = await apiGet<{ items: Report[] }>(`/reports?propertyId=${id}`)
+      setReports(r.items)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בהפקת הדוח')
     } finally {
@@ -235,6 +244,44 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </Card>
           </div>
+
+          {/* Past reports for this property */}
+          <Card className="mt-6 p-5">
+            <h2 className="mb-4 text-lg font-medium text-white">דוחות קודמים ({reports.length})</h2>
+            <div className="flex flex-col gap-2 text-sm">
+              {reports.map((r) => (
+                <div key={r.id} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+                  <div>
+                    <div className="text-white">{r.title}</div>
+                    <div className="text-white/50">
+                      {r.valuation_summary && (
+                        <>
+                          {VALUATION_METHODS[r.valuation_summary.method] || r.valuation_summary.method}
+                          {' · '}
+                          {formatILS(r.valuation_summary.estimatedValue)}
+                          {' · '}
+                        </>
+                      )}
+                      {new Date(r.created_at).toLocaleDateString('he-IL')}
+                    </div>
+                  </div>
+                  {r.format === 'pdf' ? (
+                    <a
+                      href={`/api/appraiser/reports/${r.id}/pdf`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-white/20 px-3 py-1.5 text-white transition hover:bg-white/10"
+                    >
+                      פתיחת PDF
+                    </a>
+                  ) : (
+                    <span className="text-xs text-white/30">אין PDF</span>
+                  )}
+                </div>
+              ))}
+              {reports.length === 0 && <p className="text-white/40">עדיין לא הופק דוח לנכס הזה.</p>}
+            </div>
+          </Card>
         </>
       )}
     </AppraiserShell>

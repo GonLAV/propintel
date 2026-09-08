@@ -27,24 +27,64 @@ async function findById(tenantId, id) {
   return rows[0] || null;
 }
 
-async function list(tenantId, { valuationId, limit, offset }) {
+async function list(tenantId, { valuationId, propertyId, limit, offset }) {
   const params = [tenantId];
-  let where = 'tenant_id = $1 AND deleted_at IS NULL';
+  let where = 'r.tenant_id = $1 AND r.deleted_at IS NULL';
   if (valuationId) {
     params.push(valuationId);
-    where += ` AND valuation_id = $${params.length}`;
+    where += ` AND r.valuation_id = $${params.length}`;
+  }
+  if (propertyId) {
+    // Reports don't carry property_id directly — join through the
+    // valuation they were generated from to reach it, same join shape as
+    // properties.repository.js#list's valuation/report count subqueries.
+    params.push(propertyId);
+    where += ` AND v.property_id = $${params.length}`;
   }
   params.push(limit, offset);
+  const rCols = COLS.split(',').map((c) => `r.${c.trim()}`).join(', ');
   const { rows } = await query(
-    `SELECT ${COLS}, COUNT(*) OVER() AS total_count
-       FROM reports
+    `SELECT ${rCols}, COUNT(*) OVER() AS total_count,
+            v.property_id AS valuation_property_id,
+            v.method AS valuation_method,
+            v.estimated_value AS valuation_estimated_value,
+            v.currency AS valuation_currency,
+            p.address AS property_address,
+            p.city AS property_city
+       FROM reports r
+       LEFT JOIN valuations v ON v.id = r.valuation_id
+       LEFT JOIN properties p ON p.id = v.property_id
       WHERE ${where}
-   ORDER BY created_at DESC
+   ORDER BY r.created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );
   const total = rows[0] ? Number(rows[0].total_count) : 0;
-  return { rows: rows.map(({ total_count, ...r }) => r), total };
+  return {
+    rows: rows.map(({
+      total_count: totalCount,
+      valuation_property_id: valuationPropertyId,
+      valuation_method: valuationMethod,
+      valuation_estimated_value: valuationEstimatedValue,
+      valuation_currency: valuationCurrency,
+      property_address: propertyAddress,
+      property_city: propertyCity,
+      ...r
+    }) => ({
+      ...r,
+      property: propertyAddress === null && propertyCity === null ? null : {
+        id: valuationPropertyId,
+        address: propertyAddress,
+        city: propertyCity,
+      },
+      valuation_summary: valuationMethod === null ? null : {
+        method: valuationMethod,
+        estimatedValue: valuationEstimatedValue === null ? null : Number(valuationEstimatedValue),
+        currency: valuationCurrency,
+      },
+    })),
+    total,
+  };
 }
 
 async function softDelete(tenantId, id) {

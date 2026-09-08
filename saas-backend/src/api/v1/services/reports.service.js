@@ -171,7 +171,7 @@ async function getById(tenantId, id) {
 async function list(tenantId, query) {
   const { limit, offset, page, pageSize } = paginate(query);
   const { rows, total } = await repo.list(tenantId, {
-    valuationId: query.valuationId, limit, offset,
+    valuationId: query.valuationId, propertyId: query.propertyId, limit, offset,
   });
   return { items: rows, page, pageSize, total };
 }

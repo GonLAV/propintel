@@ -55,6 +55,8 @@ describe('report PDF export end-to-end (real Postgres + Redis)', () => {
   let propertyId;
   let comparablesValuationId;
   let reconciledValuationId;
+  let secondPropertyId;
+  let secondPropertyValuationId;
 
   beforeAll(async () => {
     try {
@@ -101,6 +103,35 @@ describe('report PDF export end-to-end (real Postgres + Redis)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ propertyId, method: 'reconciled' });
     reconciledValuationId = reconVal.body.id;
+
+    // A second, unrelated property+valuation — used to prove the
+    // `propertyId` list filter actually scopes to one property instead of
+    // returning every report in the tenant.
+    const secondProp = await request(app)
+      .post('/api/v1/properties')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        address: 'שדרות רוטשילד 5', city: 'תל אביב', propertyType: 'apartment',
+        areaSqm: 60, rooms: 2, floor: 1, yearBuilt: 2015,
+      });
+    secondPropertyId = secondProp.body.id;
+
+    for (let i = 1; i <= 5; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await request(app)
+        .post('/api/v1/comparables')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          city: 'תל אביב', propertyType: 'apartment', areaSqm: 58 + i, rooms: 2, floor: i,
+          yearBuilt: 2014, salePrice: 1800000 + i * 30000, soldAt: `2025-0${i}-15`, source: 'test',
+        });
+    }
+
+    const secondVal = await request(app)
+      .post('/api/v1/valuations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ propertyId: secondPropertyId, method: 'comparables' });
+    secondPropertyValuationId = secondVal.body.id;
   });
 
   afterAll(async () => {
@@ -210,4 +241,58 @@ describe('report PDF export end-to-end (real Postgres + Redis)', () => {
     // PDF should be meaningfully bigger than a bare single-method report.
     expect(pdfRes.body.length).toBeGreaterThan(15000);
   }, 30000);
+
+  test('GET /reports?propertyId= scopes results to that property only, and enriches with property/valuation info', async () => {
+    if (!dbReachable) return;
+
+    // Reports already created against `propertyId` above (comparables +
+    // json + reconciled). Create one more against the unrelated
+    // `secondPropertyId` to prove cross-property leakage doesn't happen.
+    const otherReport = await request(app)
+      .post('/api/v1/reports')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ valuationId: secondPropertyValuationId, title: 'שומה - נכס שני', format: 'json' });
+    expect(otherReport.status).toBe(201);
+
+    const scoped = await request(app)
+      .get(`/api/v1/reports?propertyId=${propertyId}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(scoped.status).toBe(200);
+    expect(scoped.body.items.length).toBeGreaterThan(0);
+    for (const item of scoped.body.items) {
+      expect(item.property.id).toBe(propertyId);
+      expect(item.property.address).toBe(address);
+      expect(item.property.city).toBe(city);
+    }
+    expect(scoped.body.items.some((r) => r.id === otherReport.body.id)).toBe(false);
+
+    const scopedOther = await request(app)
+      .get(`/api/v1/reports?propertyId=${secondPropertyId}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(scopedOther.status).toBe(200);
+    expect(scopedOther.body.items.length).toBe(1);
+    expect(scopedOther.body.items[0].id).toBe(otherReport.body.id);
+    expect(scopedOther.body.items[0].property.address).toBe('שדרות רוטשילד 5');
+    expect(scopedOther.body.items[0].valuation_summary.method).toBe('comparables');
+    expect(typeof scopedOther.body.items[0].valuation_summary.estimatedValue).toBe('number');
+  });
+
+  test('GET /reports with no filter returns every report across both properties for this tenant', async () => {
+    if (!dbReachable) return;
+
+    const all = await request(app)
+      .get('/api/v1/reports?pageSize=100')
+      .set('Authorization', `Bearer ${token}`);
+    expect(all.status).toBe(200);
+    expect(all.body.total).toBeGreaterThanOrEqual(4);
+
+    const propertyIds = new Set(all.body.items.map((r) => r.property?.id).filter(Boolean));
+    expect(propertyIds.has(propertyId)).toBe(true);
+    expect(propertyIds.has(secondPropertyId)).toBe(true);
+
+    // Newest-first ordering.
+    const timestamps = all.body.items.map((r) => new Date(r.created_at).getTime());
+    const sorted = [...timestamps].sort((a, b) => b - a);
+    expect(timestamps).toEqual(sorted);
+  });
 });

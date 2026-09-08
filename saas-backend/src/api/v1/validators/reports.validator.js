@@ -18,6 +18,7 @@ const create = z.object({
 
 const list = z.object({
   valuationId: z.string().uuid().optional(),
+  propertyId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).max(10000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 }).strict();
