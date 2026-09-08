@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const { randomUUID } = require('node:crypto');
 
 const config = require('../../../config');
-const { withTransaction } = require('../../../config/database');
+const { withTransaction, pool } = require('../../../config/database');
 const { signAccessToken } = require('../../../utils/jwt');
 const { sha256, randomToken } = require('../../../utils/encryption');
 const { Unauthorized, Conflict, BadRequest } = require('../../../utils/errors');
@@ -20,10 +20,10 @@ function parseTtlMs(ttl) {
   return n * { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2]];
 }
 
-async function issueRefreshToken({ userId, tenantId, familyId, ip, userAgent }) {
+async function issueRefreshToken({ userId, tenantId, familyId, ip, userAgent, client = pool }) {
   const token = randomToken(48);
   const id = randomUUID();
-  await refreshRepo.insert({
+  await refreshRepo.insert(client, {
     id,
     userId,
     tenantId,
@@ -48,7 +48,7 @@ async function register({ email, password, fullName, tenantName, tenantSlug, ip,
     });
     const accessToken = signAccessToken({ sub: user.id, tenantId: tenant.id, role: user.role });
     const { token: refreshToken } = await issueRefreshToken({
-      userId: user.id, tenantId: tenant.id, ip, userAgent,
+      userId: user.id, tenantId: tenant.id, ip, userAgent, client,
     });
     return { user, tenant, accessToken, refreshToken };
   });

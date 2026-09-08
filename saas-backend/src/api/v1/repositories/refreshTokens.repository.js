@@ -2,8 +2,8 @@
 
 const { query } = require('../../../config/database');
 
-async function insert({ id, userId, tenantId, tokenHash, familyId, expiresAt, ip, userAgent }) {
-  const { rows } = await query(
+async function insert(client, { id, userId, tenantId, tokenHash, familyId, expiresAt, ip, userAgent }) {
+  const { rows } = await client.query(
     `INSERT INTO refresh_tokens
        (id, user_id, tenant_id, token_hash, family_id, expires_at, ip, user_agent)
      VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, $6, $7, $8)

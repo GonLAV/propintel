@@ -4,6 +4,16 @@
 
 ---
 
+## תיקון קריטי — 2026-09-08 (אהליאב)
+
+**המשתמש/ת ביקש/ה לבנות "MVP מדהים" — נבדק בפועל מה עובד ב-`saas-backend/`, לא רק תועד מהמסמכים.** התוצאה: התשתית בשלה משמעותית ממה שה-README/roadmap הישנים משקפים (auth מלא, JWT, multi-tenant, migrations אמיתיות, audit trail בצד שרת — כל הדברים ש"חסרים" ב-`src/` הישן, **כבר קיימים כאן**). אבל נמצא באג שחוסם MVP לגמרי:
+
+- **`register()` (הרשמת דייר חדש) נכשל תמיד ב-500.** `withTransaction` יצר tenant+user על connection אחד (ה-transaction client), אבל `issueRefreshToken` הכניס את ה-refresh token דרך ה-pool הגלובלי — connection **אחר**, שעדיין לא רואה את ה-user (לא קומיט). Foreign key violation בכל הרשמה.
+- **תוקן:** `refreshTokens.repository.js#insert` מקבל עכשיו `client` מפורש (כמו `users`/`tenants` repos), ו-`auth.service.js` מעביר את ה-transaction client ב-`register()`.
+- **אומת בפועל:** הרצתי Postgres+Redis אמיתיים, migrations, register→login→`/me` מקצה לקצה — עובד. 32/32 בדיקות עוברות (כולל 2 חדשות).
+- **פער-בדיקות שגילה את זה:** קובץ ה-"אינטגרציה" הקיים (`auth.test.js`) **ממוקמָק DB לגמרי** — אף פעם לא נגע ב-Postgres אמיתי, ולכן לא תפס את הבאג. נוסף `tests/integration/auth.e2e.test.js` — DB/Redis אמיתיים, מדלג בעדינות אם אין Postgres זמין. אומת שהוא **נכשל** על הקוד הישן (revert זמני) ו**עובר** על התיקון.
+- **CI תוקן במקביל:** `ci-cd.yml` הריץ Postgres/Redis אמיתיים ב-job של `saas-backend` אבל **מעולם לא הריץ migrations** — כלומר הבדיקות המקצועיות תמיד רצו על DB ריק/לא-קיים ולא היו יכולות לתפוס באג כזה גם אם היה קובץ בדיקה. נוסף שלב `Migrate` לפני `Test`.
+
 ## ארכיטקטורה — שני קודבייסים
 
 | | מיקום | סטטוס |
@@ -55,6 +65,13 @@
 - CSV/JSON import עם validation.
 - Report Generator + PDF export (jsPDF) + branding.
 - אינטגרציות ממשלתיות: data.gov.il, nadlan.gov.il (production-grade לפי PRD).
+
+## מה כן עובד ב-`saas-backend/` (אומת בפועל, 2026-09-08 — לא מהמסמכים)
+
+- **Auth מלא**: register/login/refresh/logout/`me`, JWT (access+refresh, refresh-token rotation עם family-revocation על reuse), bcrypt, rate limiting (Redis-backed).
+- **Multi-tenant אמיתי**: tenant/user/property/valuation/report/comparable_sales/audit_logs/password_resets — כל הסכימה ב-migrations אמיתיות (3 קבצי SQL), רצה נקי.
+- **Audit trail בצד שרת קיים כבר** (`writeAudit`, טבלת `audit_logs`) — זה בדיוק מה שסומן כחסר ב-`src/` הישן; **לא חסר כאן**.
+- **הצעד הבא ההגיוני ל"MVP מדהים":** לחבר את מנוע השומה (`src/lib/valuationEngine.ts` וכו') ואת ה-frontend ל-API הזה, במקום להמשיך לבנות עליו במקביל לאפליקציה הישנה. זו בדיוק ההכרעה שסומנה למטה תחת "פתוח להכרעה" — עכשיו יש עוד סיבה טובה להכריע: ה-backend כאן עובד ומוכן יותר משנראה.
 
 ---
 
