@@ -9,7 +9,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Database, TrendUp, CheckCircle, Warning, Info, Sparkle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { performCompleteValuation, generateAppraisalPrompt, type CleanTransaction, type DataGovValuationResult } from '@/lib/dataGovAPI'
+import { calculateBasicValuation, generateAppraisalPrompt, type CleanTransaction, type DataGovValuationResult } from '@/lib/dataGovAPI'
+import { govDataService } from '@/services/govDataService'
 import { createAppraisalRecord, addAIAnalysis, exportAppraisalToCSV, type AppraisalRecord } from '@/lib/appraisalSchema'
 import { createLogger } from '@/lib/logger'
 
@@ -61,15 +62,18 @@ export function DataGovValuation({
       setProgress(20)
       setCurrentStep('שולף עסקאות מהממשלה...')
       
-      const result = await performCompleteValuation({
+      const transactionResult = await govDataService.searchTransactions({
         city,
         street: street || undefined,
-        targetArea: area,
-        propertyDetails: {
-          rooms: rooms || undefined,
-          floor: floor || undefined,
-        }
+        limit: 100,
       })
+      if (transactionResult.transactions.length === 0) {
+        throw new Error('לא נמצאו עסקאות מתאימות לנכס זה. נסה להרחיב את קריטריוני החיפוש.')
+      }
+      const result = {
+        transactions: transactionResult.transactions,
+        valuation: calculateBasicValuation(transactionResult.transactions, area),
+      }
 
       setProgress(60)
       setCurrentStep('מנקה ומנרמל נתונים...')
