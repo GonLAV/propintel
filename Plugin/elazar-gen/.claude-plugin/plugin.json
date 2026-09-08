@@ -1,0 +1,6 @@
+{
+  "name": "elazar-gen",
+  "version": "1.0.0",
+  "description": "אלעזר — מוביל בקרת בריאות ומדדים ל-PropIntel. מודד (lint/test/audit/חוב טכני), עוקב אחרי מגמה, ומדווח — לא מתקן בעצמו.",
+  "keywords": ["partner-agent", "health-monitoring", "kpi", "propintel", "hebrew"]
+}

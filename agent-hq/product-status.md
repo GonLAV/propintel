@@ -55,6 +55,32 @@
 
 ---
 
+## עבודה מוקצית ל-GitHub Copilot (2026-09-08)
+
+כדי לעבוד במקביל לסוכני Claude בלי התנגשות, הוקצו ל-Copilot **67 אזהרות ה-lint שנותרו** (0 errors, כל השגיאות האמיתיות כבר תוקנו). רשימת קבצים סגורה — 17 קבצים תחת `src/`:
+
+```
+src/components/AutomatedReports.jsx
+src/components/BettermentLevyCalculator.jsx
+src/components/BulkValuation.jsx
+src/components/OCRHelper.jsx
+src/components/OfficeValuationCalculator.jsx
+src/components/Property3DView.jsx
+src/components/cases/CaseTimeline.jsx
+src/components/dashboard/RecentActivity.jsx
+src/components/property-management/IncomeExpenseTracker.jsx
+src/components/property-management/TenantManager.jsx
+src/components/ui/badge.jsx
+src/components/ui/button.jsx
+src/components/ui/form.jsx
+src/components/ui/navigation-menu.jsx
+src/components/ui/sidebar.jsx
+src/components/ui/toggle.jsx
+src/lib/AuthContext.jsx
+```
+
+**גבול מוסכם:** Copilot לא נוגע ב-`agent-hq/` וב-`Plugin/` (תחום הסוכנים). Claude לא נוגע ברשימת 17 הקבצים האלה עד שה-PR של Copilot נסגר, כדי למנוע קונפליקטים. סטטוס: [ ] טרם בוצע.
+
 ## עדכון אחרון
 
 **2026-09-08** — נוצר לראשונה על ידי אהליאב, מתוך `PRODUCT_ARCHITECTURE_AUDIT.md`. בוצעה מדידה ראשונה בפועל (lint+test, ראו `kpi-dashboard.md`). עדיין לא בוצע תיקון קוד בפועל — הפריט המומלץ הבא: תיקון שגיאת ה-lint היחידה (`no-empty-pattern`), משימה קטנה ובטוחה לפתוח בה.

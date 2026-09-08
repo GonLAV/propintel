@@ -34,6 +34,11 @@
       "name": "oholiav-gen",
       "version": "1.0.0",
       "source": "./oholiav-gen"
+    },
+    {
+      "name": "elazar-gen",
+      "version": "1.0.0",
+      "source": "./elazar-gen"
     }
   ],
   "name": "local-desktop-app-uploads",
