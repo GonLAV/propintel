@@ -86,8 +86,38 @@ export class MultiUnitCalculator {
   }
 
   static calculate(params: BuildingParams): MultiUnitResult {
+    if (!Number.isFinite(params.totalBuildingValue) || params.totalBuildingValue <= 0) {
+      throw new Error('MultiUnitCalculator requires a positive building value')
+    }
+
+    if (!Number.isFinite(params.totalArea) || params.totalArea <= 0) {
+      throw new Error('MultiUnitCalculator requires a positive total area')
+    }
+
+    if (!Number.isFinite(params.baseValuePerSqm) || params.baseValuePerSqm <= 0) {
+      throw new Error('MultiUnitCalculator requires a positive base value per sqm')
+    }
+
+    if (!Array.isArray(params.units) || params.units.length === 0) {
+      throw new Error('MultiUnitCalculator requires at least one unit')
+    }
+
+    params.units.forEach(unit => {
+      if (!Number.isFinite(unit.area) || unit.area <= 0) {
+        throw new Error(`MultiUnitCalculator requires a positive area for unit ${unit.id}`)
+      }
+
+      if (!Number.isFinite(unit.floor)) {
+        throw new Error(`MultiUnitCalculator requires a finite floor for unit ${unit.id}`)
+      }
+    })
+
     const weights = this.calculateUnitWeights(params.units)
     const totalWeight = weights.reduce((sum, w) => sum + w.totalWeight, 0)
+
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+      throw new Error('MultiUnitCalculator requires positive total unit weight')
+    }
 
     const unitValuations: UnitValuation[] = params.units.map(unit => {
       const weight = weights.find(w => w.unitId === unit.id)!

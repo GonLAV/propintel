@@ -61,12 +61,52 @@ export class WeightedAverageCalculator {
     customWeights?: Partial<WeightingFactor>
   ): WeightedAverageResult {
     const weights = { ...this.DEFAULT_WEIGHTS, ...customWeights }
+
+    if (!Array.isArray(comparables) || comparables.length === 0) {
+      throw new Error('WeightedAverageCalculator requires at least one comparable')
+    }
+
+    Object.entries(weights).forEach(([key, value]) => {
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error(`WeightedAverageCalculator received an invalid ${key} weight`)
+      }
+    })
+
+    comparables.forEach(comp => {
+      if (!Number.isFinite(comp.price) || comp.price <= 0) {
+        throw new Error(`WeightedAverageCalculator requires a positive price for comparable ${comp.id}`)
+      }
+
+      if (!Number.isFinite(comp.pricePerSqm) || comp.pricePerSqm <= 0) {
+        throw new Error(`WeightedAverageCalculator requires a positive price per sqm for comparable ${comp.id}`)
+      }
+
+      if (!Number.isFinite(comp.area) || comp.area <= 0) {
+        throw new Error(`WeightedAverageCalculator requires a positive area for comparable ${comp.id}`)
+      }
+
+      if (!Number.isFinite(comp.distance) || comp.distance < 0) {
+        throw new Error(`WeightedAverageCalculator requires a non-negative distance for comparable ${comp.id}`)
+      }
+
+      if (!Number.isFinite(comp.similarity) || comp.similarity < 0 || comp.similarity > 100) {
+        throw new Error(`WeightedAverageCalculator requires similarity between 0 and 100 for comparable ${comp.id}`)
+      }
+
+      if (!Number.isFinite(comp.reliability) || comp.reliability < 0 || comp.reliability > 100) {
+        throw new Error(`WeightedAverageCalculator requires reliability between 0 and 100 for comparable ${comp.id}`)
+      }
+    })
     
     const weightedComparables = comparables.map(comp => 
       this.calculateWeight(comp, weights)
     )
 
     const totalWeight = weightedComparables.reduce((sum, c) => sum + c.weight, 0)
+
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+      throw new Error('WeightedAverageCalculator requires positive total comparable weight')
+    }
     
     const weightedAverage = weightedComparables.reduce(
       (sum, c) => sum + c.weightedPrice,

@@ -99,6 +99,36 @@ export class CostApproachCalculator {
     landValue: LandValue,
     costSource: string = 'מחירון דקל 2024'
   ): CostApproachResult {
+    if (!Number.isFinite(constructionParams.area) || constructionParams.area <= 0) {
+      throw new Error('CostApproachCalculator requires a positive construction area')
+    }
+
+    if (!Number.isFinite(constructionParams.floors) || constructionParams.floors <= 0) {
+      throw new Error('CostApproachCalculator requires a positive floor count')
+    }
+
+    if (!Number.isFinite(landValue.totalLandValue) || landValue.totalLandValue < 0) {
+      throw new Error('CostApproachCalculator requires a non-negative land value')
+    }
+
+    if (!Number.isFinite(depreciationParams.buildingAge) || depreciationParams.buildingAge < 0) {
+      throw new Error('CostApproachCalculator requires a non-negative building age')
+    }
+
+    if (!Number.isFinite(depreciationParams.totalLifespan) || depreciationParams.totalLifespan <= 0) {
+      throw new Error('CostApproachCalculator requires a positive total lifespan')
+    }
+
+    const depreciationPercentages = [
+      depreciationParams.physicalDeteriorationPercent,
+      depreciationParams.functionalObsolescencePercent,
+      depreciationParams.economicObsolescencePercent
+    ]
+
+    if (depreciationPercentages.some(value => !Number.isFinite(value) || value < 0 || value > 100)) {
+      throw new Error('CostApproachCalculator requires depreciation percentages between 0 and 100')
+    }
+
     const baseCostPerSqm = this.getConstructionCost(
       constructionParams.buildingType,
       constructionParams.quality
