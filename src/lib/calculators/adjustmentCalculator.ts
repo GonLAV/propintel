@@ -92,6 +92,24 @@ export class AdjustmentCalculator {
     area: number,
     adjustments: AdjustmentFactor[]
   ): AdjustmentCalculation {
+    if (!Number.isFinite(basePrice) || basePrice <= 0) {
+      throw new Error('AdjustmentCalculator requires a positive base price')
+    }
+
+    if (!Number.isFinite(area) || area <= 0) {
+      throw new Error('AdjustmentCalculator requires a positive area')
+    }
+
+    if (!Array.isArray(adjustments)) {
+      throw new Error('AdjustmentCalculator requires an adjustments array')
+    }
+
+    adjustments.forEach(adj => {
+      if (!Number.isFinite(adj.value)) {
+        throw new Error(`AdjustmentCalculator received an invalid adjustment value for ${adj.id}`)
+      }
+    })
+
     const basePricePerSqm = basePrice / area
     const breakdown: AdjustmentBreakdown[] = []
     
@@ -104,7 +122,6 @@ export class AdjustmentCalculator {
     })
 
     let runningTotal = basePrice
-    let totalAdjustmentPercentage = 0
     const appliedAdjustments = adjustments.filter(a => a.applied)
 
     appliedAdjustments.forEach((adj, index) => {
@@ -117,13 +134,11 @@ export class AdjustmentCalculator {
       } else if (adj.type === 'perSqm') {
         adjustmentValue = adj.value * area
       }
-
       runningTotal += adjustmentValue
-      totalAdjustmentPercentage += adj.value
 
       breakdown.push({
         step: index + 1,
-        description: `${adj.nameHebrew} (${adj.value > 0 ? '+' : ''}${adj.value}%)`,
+        description: `${adj.nameHebrew} (${this.formatAdjustmentValue(adj)})`,
         calculation: adj.type === 'percentage' 
           ? `${breakdown[index].runningTotal.toLocaleString('he-IL')} × ${adj.value}% = ${adjustmentValue.toLocaleString('he-IL')}`
           : `${adjustmentValue.toLocaleString('he-IL')} ₪`,
@@ -134,8 +149,9 @@ export class AdjustmentCalculator {
 
     const adjustedPrice = runningTotal
     const adjustedPricePerSqm = adjustedPrice / area
+    const totalAdjustmentPercentage = ((adjustedPrice - basePrice) / basePrice) * 100
 
-    const formula = this.generateFormula(basePrice, appliedAdjustments)
+    const formula = this.generateFormula(basePrice, area, appliedAdjustments)
     const narrativeHebrew = this.generateNarrative(
       basePrice,
       adjustedPrice,
@@ -159,6 +175,7 @@ export class AdjustmentCalculator {
 
   private static generateFormula(
     basePrice: number,
+    area: number,
     adjustments: AdjustmentFactor[]
   ): string {
     if (adjustments.length === 0) {
@@ -166,10 +183,34 @@ export class AdjustmentCalculator {
     }
 
     const adjustmentTerms = adjustments
-      .map(a => `(1 ${a.value >= 0 ? '+' : '-'} ${Math.abs(a.value)}%)`)
-      .join(' × ')
+      .map(a => {
+        if (a.type === 'percentage') {
+          return `× (1 ${a.value >= 0 ? '+' : '-'} ${Math.abs(a.value)}%)`
+        }
 
-    return `שווי = ${basePrice.toLocaleString('he-IL')} × ${adjustmentTerms}`
+        if (a.type === 'perSqm') {
+          return `${a.value >= 0 ? '+' : '-'} (${Math.abs(a.value).toLocaleString('he-IL')} ₪/מ"ר × ${area.toLocaleString('he-IL')} מ"ר)`
+        }
+
+        return `${a.value >= 0 ? '+' : '-'} ${Math.abs(a.value).toLocaleString('he-IL')} ₪`
+      })
+      .join(' ')
+
+    return `שווי = ${basePrice.toLocaleString('he-IL')} ${adjustmentTerms}`
+  }
+
+  private static formatAdjustmentValue(adjustment: AdjustmentFactor): string {
+    const sign = adjustment.value > 0 ? '+' : ''
+
+    if (adjustment.type === 'percentage') {
+      return `${sign}${adjustment.value}%`
+    }
+
+    if (adjustment.type === 'perSqm') {
+      return `${sign}${adjustment.value.toLocaleString('he-IL')} ₪/מ"ר`
+    }
+
+    return `${sign}${adjustment.value.toLocaleString('he-IL')} ₪`
   }
 
   private static generateNarrative(
