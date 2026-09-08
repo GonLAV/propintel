@@ -103,6 +103,8 @@ export type ValuationServiceRequest =
   | (BaseRequest & { method: 'professional-avm'; transactions: AVMTransaction[]; config?: Partial<AVMConfiguration> })
   | { method: 'hybrid'; results: ValuationResult[]; weights?: Partial<Record<ValuationResult['method'], number>> }
 
+type StandardValuationRequest = Exclude<ValuationServiceRequest, { method: 'hybrid' }>
+
 const ENGINE_VERSION = 'valuation-engine-v1'
 const AVM_VERSION = 'professional-avm-v1'
 
@@ -133,7 +135,7 @@ function validateProperty(property: Property): void {
   EnginePropertySchema.parse(property)
 }
 
-function validateStandardRequest(request: ValuationServiceRequest): void {
+function validateStandardRequest(request: StandardValuationRequest): void {
   StandardRequestSchema.parse(request)
   validateProperty(request.property)
   if ('comparables' in request) {
@@ -147,8 +149,8 @@ export async function valuate(request: ValuationServiceRequest): Promise<Valuati
     const transactions = request.transactions.map(transaction => AVMTransactionSchema.parse(transaction))
     const avmResult = await new ProfessionalAVM(request.config).valuate(request.property, transactions)
     const checks: ValuationQualityCheck[] = [
-      ...avmResult.warnings.map(message => ({ severity: 'warning' as const, code: 'avm-warning', message })),
-      ...avmResult.lowConfidenceFlags.map(message => ({ severity: 'warning' as const, code: 'low-confidence', message }))
+      ...avmResult.warnings.map(message => ({ severity: 'warning' as const, code: 'low-sample' as const, message })),
+      ...avmResult.lowConfidenceFlags.map(message => ({ severity: 'warning' as const, code: 'high-variation' as const, message }))
     ]
     const legacyResult: ValuationResult = {
       method: 'comparable-sales',
@@ -197,36 +199,38 @@ export async function valuate(request: ValuationServiceRequest): Promise<Valuati
     )
   }
 
-  validateStandardRequest(request)
+  const standardRequest = request as StandardValuationRequest
+  validateStandardRequest(standardRequest)
   let result: ValuationResult
-  switch (request.method) {
+  switch (standardRequest.method) {
     case 'comparable-sales':
-      result = request.professional
-        ? ValuationEngine.calculateComparableSalesApproachProfessional(request.property, request.comparables)
-        : ValuationEngine.calculateComparableSalesApproach(request.property, request.comparables)
+      result = standardRequest.professional
+        ? ValuationEngine.calculateComparableSalesApproachProfessional(standardRequest.property, standardRequest.comparables)
+        : ValuationEngine.calculateComparableSalesApproach(standardRequest.property, standardRequest.comparables)
       return normalizeEngineResult(result, {
-        propertyId: request.property.id,
-        comparables: request.comparables.length,
-        selectedComparables: request.comparables.filter(comparable => comparable.selected).length,
-        mode: request.professional ? 'professional' : 'standard'
+        propertyId: standardRequest.property.id,
+        comparables: standardRequest.comparables.length,
+        selectedComparables: standardRequest.comparables.filter(comparable => comparable.selected).length,
+        mode: standardRequest.professional ? 'professional' : 'standard'
       })
     case 'cost-approach':
-      result = ValuationEngine.calculateCostApproach(request.property, request.landValue, request.constructionCostPerSqm)
-      return normalizeEngineResult(result, { propertyId: request.property.id, landValue: request.landValue, constructionCostPerSqm: request.constructionCostPerSqm })
+      result = ValuationEngine.calculateCostApproach(standardRequest.property, standardRequest.landValue, standardRequest.constructionCostPerSqm)
+      return normalizeEngineResult(result, { propertyId: standardRequest.property.id, landValue: standardRequest.landValue, constructionCostPerSqm: standardRequest.constructionCostPerSqm })
     case 'income-approach':
       result = ValuationEngine.calculateIncomeApproach(
-        request.property,
-        request.monthlyRent,
-        request.vacancyRate,
-        request.expenseRatio,
-        request.capRate
+        standardRequest.property,
+        standardRequest.monthlyRent,
+        standardRequest.vacancyRate,
+        standardRequest.expenseRatio,
+        standardRequest.capRate
       )
       return normalizeEngineResult(result, {
-        propertyId: request.property.id,
-        monthlyRent: request.monthlyRent,
-        vacancyRate: request.vacancyRate ?? 0.05,
-        expenseRatio: request.expenseRatio ?? 0.3,
-        capRate: request.capRate ?? 0.05
+        propertyId: standardRequest.property.id,
+        monthlyRent: standardRequest.monthlyRent,
+        vacancyRate: standardRequest.vacancyRate ?? 0.05,
+        expenseRatio: standardRequest.expenseRatio ?? 0.3,
+        capRate: standardRequest.capRate ?? 0.05
       })
   }
+  throw new Error(`Unsupported valuation method: ${standardRequest.method}`)
 }

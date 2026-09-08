@@ -88,6 +88,6 @@ describe('valuation service', () => {
   it('surfaces quality warnings without changing engine output', async () => {
     const result = await valuate({ method: 'comparable-sales', property, comparables: [comparable('a', 2400000)] })
     expect(result.warnings.length).toBeGreaterThan(0)
-    expect(result.legacyResult.estimatedValue).toBe(result.estimatedValue)
+    expect((result.legacyResult as { estimatedValue: number }).estimatedValue).toBe(result.estimatedValue)
   })
 })
