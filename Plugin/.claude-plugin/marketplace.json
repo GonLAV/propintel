@@ -29,6 +29,11 @@
       "name": "malachi-gen",
       "version": "1.0.0",
       "source": "./malachi-gen"
+    },
+    {
+      "name": "oholiav-gen",
+      "version": "1.0.0",
+      "source": "./oholiav-gen"
     }
   ],
   "name": "local-desktop-app-uploads",
