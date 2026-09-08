@@ -54,6 +54,11 @@
       "name": "aharon-gen",
       "version": "1.0.0",
       "source": "./aharon-gen"
+    },
+    {
+      "name": "uri-gen",
+      "version": "1.0.0",
+      "source": "./uri-gen"
     }
   ],
   "name": "local-desktop-app-uploads",

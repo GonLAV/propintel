@@ -1,0 +1,6 @@
+{
+  "name": "uri-gen",
+  "version": "1.0.0",
+  "description": "אורי — בקרת GUI וחזות ל-PropIntel. מפעיל את המוצר בפועל (לא קורא קוד), מצלם מסך, ומדווח פערי חזות/RTL/חיבור-לבאקנד מול העיניים.",
+  "keywords": ["partner-agent", "visual-qa", "gui", "propintel", "hebrew"]
+}
