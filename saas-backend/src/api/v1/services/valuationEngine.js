@@ -125,7 +125,31 @@ function depreciationPct(yearBuilt, asOf = new Date(), usefulLife = 60) {
   return clamp(age / usefulLife, 0, 0.6);
 }
 
-function costApproachValuation({ subject, asOf = new Date() }) {
+// Land value via the abstraction (allocation) method: land ≈ market value of
+// comparable sales minus the depreciated replacement cost of the improvement.
+// This is a standard appraisal technique — it grounds the land component in
+// this tenant's own local market data instead of one flat national number,
+// which is what made the cost approach undervalue high-land-cost cities
+// (e.g. Tel Aviv) relative to the comparables method for the same property.
+// Requires at least 3 comps to trust the median; otherwise null (caller falls
+// back to the flat national rate).
+function abstractedLandRatePerSqm({ subject, comps, depreciatedReplacementPerSqm, asOf }) {
+  if (!Array.isArray(comps) || comps.length < 3) return null;
+  const adjustedPpsms = comps
+    .map((c) => adjustComparable(c, subject, asOf).adjustedPpsm)
+    .sort((a, b) => a - b);
+  const mid = Math.floor(adjustedPpsms.length / 2);
+  const marketPpsm = adjustedPpsms.length % 2 === 0
+    ? (adjustedPpsms[mid - 1] + adjustedPpsms[mid]) / 2
+    : adjustedPpsms[mid];
+  const landPpsm = marketPpsm - depreciatedReplacementPerSqm;
+  // Floor at 20% of the (depreciated) replacement rate: land is never
+  // meaningfully negative in a functioning market, but don't let a thin/odd
+  // comp sample swing it wildly either.
+  return Math.max(landPpsm, depreciatedReplacementPerSqm * 0.2);
+}
+
+function costApproachValuation({ subject, comps = [], asOf = new Date() }) {
   if (subject.property_type === 'land') {
     const rate = LAND_RATE_PER_SQM.land;
     if (!subject.area_sqm) return { value: null, confidence: 0, breakdown: { reason: 'land area_sqm required' } };
@@ -145,19 +169,31 @@ function costApproachValuation({ subject, asOf = new Date() }) {
   const landFactor = subject.property_type === 'house' ? 1.5
     : subject.property_type === 'apartment' ? 0.4
     : 1.0;
-  const landRate = LAND_RATE_PER_SQM[subject.property_type] || LAND_RATE_PER_SQM.other;
+
+  const abstractedRate = abstractedLandRatePerSqm({
+    subject, comps, depreciatedReplacementPerSqm: replRate * (1 - dep), asOf,
+  });
+  const landRate = abstractedRate !== null
+    ? abstractedRate
+    : (LAND_RATE_PER_SQM[subject.property_type] || LAND_RATE_PER_SQM.other);
+  const landValueSource = abstractedRate !== null ? 'market-abstraction' : 'national-default';
   const land = Number(subject.area_sqm) * landFactor * landRate;
 
   const value = ROUND(depreciated + land);
+  // A land value grounded in this tenant's own recent local sales is more
+  // defensible than a flat national guess.
+  const confidence = landValueSource === 'market-abstraction' ? 0.68 : 0.6;
   return {
     value,
-    confidence: 0.6,
+    confidence,
     breakdown: {
       method: 'cost',
       replacementRatePerSqm: replRate,
       replacementCost: ROUND(replacement),
       depreciationPct: Number(dep.toFixed(3)),
       depreciated: ROUND(depreciated),
+      landValueSource,
+      landRatePerSqm: ROUND(landRate),
       landContribution: ROUND(land),
     },
   };
@@ -220,7 +256,7 @@ const PREFERENCE = {
 
 function reconciledValuation({ subject, comps, inputs }) {
   const c = comparablesValuation({ subject, comps });
-  const k2 = costApproachValuation({ subject });
+  const k2 = costApproachValuation({ subject, comps });
   const inc = incomeApproachValuation({ subject, inputs });
 
   const pref = PREFERENCE[subject.property_type] || PREFERENCE.other;
@@ -267,7 +303,7 @@ function runValuation({ subject, method, comps = [], inputs = {} }) {
   let out;
   switch (method) {
     case 'comparables': out = comparablesValuation({ subject, comps }); break;
-    case 'cost':        out = costApproachValuation({ subject }); break;
+    case 'cost':        out = costApproachValuation({ subject, comps }); break;
     case 'income':      out = incomeApproachValuation({ subject, inputs }); break;
     case 'reconciled':  out = reconciledValuation({ subject, comps, inputs }); break;
     default: throw new Error(`Unknown valuation method: ${method}`);

@@ -67,6 +67,31 @@ describe('valuationEngine', () => {
     test('returns null without area', () => {
       expect(costApproachValuation({ subject: { property_type: 'apartment' } }).value).toBeNull();
     });
+
+    test('falls back to the flat national land rate with fewer than 3 comps', () => {
+      const out = costApproachValuation({ subject: subjectApt, comps: [] });
+      expect(out.breakdown.landValueSource).toBe('national-default');
+    });
+
+    test('derives land value from local comps (abstraction method) in a high-value market', () => {
+      // Tel Aviv-tier prices (~₪25,000/sqm) — far above the flat national
+      // apartment land rate (₪12,000/sqm) — so the abstracted cost-approach
+      // value should land much closer to the real market than the flat-rate
+      // one, instead of undervaluing the property by ~half.
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const expensiveComps = [
+        { id: 'c1', sale_price: 2_000_000, area_sqm: 80, floor: 4, year_built: 2005, sold_at: `${yyyy}-01-15` },
+        { id: 'c2', sale_price: 2_050_000, area_sqm: 82, floor: 5, year_built: 2005, sold_at: `${yyyy}-02-15` },
+        { id: 'c3', sale_price: 1_950_000, area_sqm: 78, floor: 3, year_built: 2005, sold_at: `${yyyy}-03-15` },
+      ];
+      const flat = costApproachValuation({ subject: subjectApt, comps: [] });
+      const abstracted = costApproachValuation({ subject: subjectApt, comps: expensiveComps });
+
+      expect(abstracted.breakdown.landValueSource).toBe('market-abstraction');
+      expect(abstracted.value).toBeGreaterThan(flat.value);
+      expect(abstracted.confidence).toBeGreaterThan(flat.confidence);
+    });
   });
 
   describe('incomeApproachValuation', () => {

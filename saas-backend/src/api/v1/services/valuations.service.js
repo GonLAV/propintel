@@ -19,8 +19,11 @@ async function create(tenantId, { propertyId, method, inputs, createdBy }) {
 
   let valuation = await repo.create(tenantId, { propertyId, method, inputs, createdBy });
   try {
+    // 'cost' also uses comps now: the land component is derived from local
+    // market data (abstraction method) when enough comps exist, instead of
+    // always falling back to a flat nationwide rate — see valuationEngine.js.
     let comps = [];
-    if (method === 'comparables' || method === 'reconciled') {
+    if (method === 'comparables' || method === 'reconciled' || method === 'cost') {
       comps = await compsRepo.findSimilar(tenantId, {
         city: property.city,
         propertyType: property.property_type,
