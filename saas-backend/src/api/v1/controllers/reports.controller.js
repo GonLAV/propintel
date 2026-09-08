@@ -38,4 +38,18 @@ async function softDelete(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { create, list, getById, softDelete };
+async function downloadPdf(req, res, next) {
+  try {
+    const { buffer, filename } = await svc.getPdf(req.user.tenantId, req.params.id);
+    // Hebrew titles aren't valid in the plain `filename=` token per RFC 6266,
+    // so send both: an ASCII fallback and the real UTF-8 name via filename*.
+    const asciiFallback = filename.replace(/[^\x20-\x7E]/g, '_');
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition',
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.set('Content-Length', String(buffer.length));
+    res.status(200).send(buffer);
+  } catch (err) { next(err); }
+}
+
+module.exports = { create, list, getById, softDelete, downloadPdf };

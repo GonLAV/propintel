@@ -7,6 +7,7 @@ const logger = require('./config/logger');
 const { pool } = require('./config/database');
 const { redis } = require('./config/redis');
 const { buildApp } = require('./app');
+const { closeBrowser } = require('./api/v1/services/pdf/pdfRenderer');
 
 async function main() {
   const app = buildApp();
@@ -27,6 +28,7 @@ async function main() {
     shuttingDown = true;
     logger.info({ signal }, 'graceful shutdown');
     server.close(() => logger.info('http server closed'));
+    try { await closeBrowser(); } catch (e) { logger.warn({ err: e }, 'pdf browser close'); }
     try { await pool.end(); } catch (e) { logger.warn({ err: e }, 'pool end'); }
     try { await redis.quit(); } catch (e) { logger.warn({ err: e }, 'redis quit'); }
     setTimeout(() => process.exit(0), 250).unref();

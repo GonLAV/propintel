@@ -53,4 +53,14 @@ async function softDelete(tenantId, id) {
   return rowCount > 0;
 }
 
-module.exports = { create, findById, list, softDelete };
+async function setStorageUrl(tenantId, id, storageUrl) {
+  const { rows } = await query(
+    `UPDATE reports SET storage_url = $3
+      WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+      RETURNING ${COLS}`,
+    [tenantId, id, storageUrl],
+  );
+  return rows[0] || null;
+}
+
+module.exports = { create, findById, list, softDelete, setStorageUrl };

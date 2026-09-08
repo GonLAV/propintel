@@ -23,6 +23,10 @@ router.get('/:id',
   authorize('owner', 'admin', 'member', 'viewer'),
   validate({ params: v.idParam }), ctrl.getById);
 
+router.get('/:id/pdf',
+  authorize('owner', 'admin', 'member', 'viewer'),
+  validate({ params: v.idParam }), ctrl.downloadPdf);
+
 router.delete('/:id',
   authorize('owner', 'admin'),
   validate({ params: v.idParam }), ctrl.softDelete);

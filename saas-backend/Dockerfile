@@ -5,6 +5,11 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache python3 make g++ libc6-compat
+# The report-PDF feature uses Playwright, but its own bundled Chromium
+# download targets glibc and doesn't run on Alpine's musl libc — the runtime
+# stage below installs Alpine's native `chromium` package instead and points
+# PLAYWRIGHT_CHROMIUM_EXECUTABLE at it, so skip Playwright's own download here.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --no-audit --no-fund
@@ -27,15 +32,21 @@ WORKDIR /app
 
 ENV NODE_ENV=production \
     NPM_CONFIG_LOGLEVEL=warn \
-    PORT=3000
+    PORT=3000 \
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium-browser
 
-RUN apk add --no-cache tini && \
+# Native Chromium + the fonts it needs to render Hebrew report PDFs
+# (font-noto-hebrew ships proper Hebrew coverage; ttf-freefont/font-noto
+# fill out other scripts so nothing renders as tofu boxes).
+RUN apk add --no-cache tini chromium nss freetype harfbuzz ca-certificates \
+      font-noto font-noto-hebrew ttf-freefont && \
     addgroup -S app && adduser -S app -G app
 
 COPY --from=deps     /app/node_modules ./node_modules
 COPY --chown=app:app package.json ./
 COPY --chown=app:app src ./src
 COPY --chown=app:app sql ./sql
+RUN mkdir -p /app/storage/reports && chown -R app:app /app/storage
 
 USER app
 EXPOSE 3000

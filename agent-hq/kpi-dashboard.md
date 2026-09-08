@@ -15,6 +15,19 @@
 | סטטוס CI (build/lint/test) | ראו GitHub Actions | — | — |
 | תלויות (`npm audit`) | 11 פגיעויות (2 low, 4 moderate, 5 high) — לא נבדק לעומק, `npm audit fix` לא הורץ | 2026-09-08 | — |
 
+## saas-backend + frontend — מדידה ראשונה (אלעזר, 2026-09-08 ~10:26-10:28 UTC)
+
+> קודבייס נפרד מ-`src/` הישן — אין עדיין baseline קודם להשוואה, אלה המדידות הראשונות.
+
+| מדד | saas-backend | frontend |
+|---|---|---|
+| Lint | 0 problems | `tsc --noEmit`: 0 errors |
+| בדיקות | 36/36 (בזמן המדידה — עלה ל-39/39 אחרי שאהליאב סיים PDF export) | 8/8 |
+| Build | — | production build עובר, 29 routes |
+| `npm audit` | 7 (1 low, 2 moderate, 4 high) | 6 (1 low, 5 high — רובם מ-`next` עצמו) |
+
+**הערה:** saas-backend נערך במקביל למדידה (אהליאב עבד על PDF export) — המספרים תקפים לרגע המדידה, לא final. לא נמצאה רגרסיה.
+
 ## מדדי מוצר-עתידיים (יופעלו כשיהיו משתמשים)
 
 - מספר שמאים רשומים
