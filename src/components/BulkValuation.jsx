@@ -19,7 +19,6 @@ import {
   Play, 
   CheckCircle,
   Warning,
-  TrendUp,
   Buildings,
   FileText,
   FileCsv,
@@ -39,7 +38,7 @@ export function BulkValuation({ properties, onUpdateProperty }) {
   const [valuationMethod, setValuationMethod] = useState('auto')
   const [searchRadius, setSearchRadius] = useState(2)
   const [similarityThreshold, setSimilarityThreshold] = useState(75)
-  const [showEmailDialog, setShowEmailDialog] = useState(false)
+  const [, setShowEmailDialog] = useState(false)
 
   const eligibleProperties = useMemo(() => {
     return properties.filter(p => 

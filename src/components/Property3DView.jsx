@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,18 @@ import {
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 
+const getSunExposure = (timeOfDay, season) => Math.round(Math.max(0, Math.min(100,
+  (timeOfDay >= 6 && timeOfDay <= 18
+    ? ((Math.cos(((timeOfDay - 12) / 6) * Math.PI) + 1) / 2) * 100
+    : 0) +
+  (season === 'summer' ? 20 : season === 'winter' ? -10 : 5)
+)))
+
+const getViewQuality = (floors) => Math.min(
+  100,
+  Math.round(60 + Math.random() * 25 + floors * 2)
+)
+
 export function Property3DView({ propertyData }) {
   const canvasRef = useRef(null)
   const sceneRef = useRef(null)
@@ -30,13 +42,40 @@ export function Property3DView({ propertyData }) {
   const [season, setSeason] = useState('summer')
   const [isAnimating, setIsAnimating] = useState(false)
   const [viewAngle, setViewAngle] = useState(45)
-  const [sunExposure, setSunExposure] = useState(0)
-  const [viewQuality, setViewQuality] = useState(0)
+  const [sunExposure, setSunExposure] = useState(() => getSunExposure(12, 'summer'))
+  const [viewQuality] = useState(() => getViewQuality(propertyData?.floors || 5))
 
   const buildingHeight = propertyData?.buildingHeight || 15
   const plotWidth = propertyData?.plotWidth || 10
   const plotLength = propertyData?.plotLength || 12
   const floors = propertyData?.floors || 5
+
+  const updateSunPosition = useCallback(() => {
+    if (!sceneRef.current) return
+
+    const sunLight = sceneRef.current.children.find(
+      child => child instanceof THREE.DirectionalLight
+    )
+
+    if (sunLight) {
+      const hourAngle = ((timeOfDay - 12) / 12) * Math.PI
+      const seasonOffset = season === 'summer' ? 0.4 : season === 'winter' ? -0.4 : 0
+
+      sunLight.position.x = Math.sin(hourAngle) * 20
+      sunLight.position.y = Math.cos(hourAngle) * 15 + 10 + seasonOffset * 5
+      sunLight.position.z = 10
+
+      const intensity = Math.max(0.2, Math.cos(hourAngle) + 0.5)
+      sunLight.intensity = intensity
+
+      const timeColor = timeOfDay < 8 || timeOfDay > 18
+        ? new THREE.Color(0xff8844)
+        : new THREE.Color(0xffffff)
+      sunLight.color = timeColor
+    }
+
+    setSunExposure(getSunExposure(timeOfDay, season))
+  }, [season, timeOfDay])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -150,9 +189,6 @@ export function Property3DView({ propertyData }) {
     }
     window.addEventListener('resize', handleResize)
 
-    calculateSunExposure()
-    calculateViewQuality()
-
     return () => {
       cancelAnimationFrame(animationId)
       window.removeEventListener('resize', handleResize)
@@ -164,49 +200,7 @@ export function Property3DView({ propertyData }) {
     if (activeView === 'sun') {
       updateSunPosition()
     }
-  }, [timeOfDay, season])
-
-  const updateSunPosition = () => {
-    if (!sceneRef.current) return
-
-    const sunLight = sceneRef.current.children.find(
-      child => child instanceof THREE.DirectionalLight
-    )
-
-    if (sunLight) {
-      const hourAngle = ((timeOfDay - 12) / 12) * Math.PI
-      const seasonOffset = season === 'summer' ? 0.4 : season === 'winter' ? -0.4 : 0
-      
-      sunLight.position.x = Math.sin(hourAngle) * 20
-      sunLight.position.y = Math.cos(hourAngle) * 15 + 10 + seasonOffset * 5
-      sunLight.position.z = 10
-      
-      const intensity = Math.max(0.2, Math.cos(hourAngle) + 0.5)
-      sunLight.intensity = intensity
-
-      const timeColor = timeOfDay < 8 || timeOfDay > 18 
-        ? new THREE.Color(0xff8844) 
-        : new THREE.Color(0xffffff)
-      sunLight.color = timeColor
-    }
-
-    calculateSunExposure()
-  }
-
-  const calculateSunExposure = () => {
-    const exposure = Math.max(0, Math.min(100, 
-      (timeOfDay >= 6 && timeOfDay <= 18 ? 
-        ((Math.cos(((timeOfDay - 12) / 6) * Math.PI) + 1) / 2) * 100 : 0) +
-      (season === 'summer' ? 20 : season === 'winter' ? -10 : 5)
-    ))
-    setSunExposure(Math.round(exposure))
-  }
-
-  const calculateViewQuality = () => {
-    const baseQuality = 60 + Math.random() * 25
-    const floorBonus = floors * 2
-    setViewQuality(Math.min(100, Math.round(baseQuality + floorBonus)))
-  }
+  }, [activeView, updateSunPosition])
 
   const handleExport = () => {
     if (!rendererRef.current) return

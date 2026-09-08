@@ -1,4 +1,3 @@
-/* eslint-env node */
 // ArcGIS REST export for Tel-Aviv GISN (configurable layer)
 // Usage:
 //   node scripts/tlv-arcgis-export.mjs [layerId] [where]

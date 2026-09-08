@@ -5,20 +5,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import { 
   Building, 
   Calculator as CalcIcon, 
-  TrendUp, 
-  FileText, 
   MapPin,
   CurrencyDollar,
   ChartBar,
   Info,
-  Warning,
-  CheckCircle as CheckIcon
+  Warning
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 
@@ -57,8 +51,6 @@ export function OfficeValuationCalculator() {
 
   const [result, setResult] = useState(null)
   const [calculationMethod, setCalculationMethod] = useState('comparable-sales')
-  const [showDetails, setShowDetails] = useState(false)
-  const [selectedDistrict, setSelectedDistrict] = useState('all')
 
   const handleCalculate = () => {
     try {

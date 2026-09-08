@@ -58,9 +58,15 @@ export default tseslint.config(
     }
   },
   {
-    files: ['src/components/ui/**/*.{ts,tsx}'],
+    files: ['src/components/ui/**/*.{ts,tsx,js,jsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
+    }
+  },
+  {
+    files: ['src/lib/AuthContext.jsx'],
+    rules: {
+      'react-refresh/only-export-components': ['warn', { allowExportNames: ['useAuth'] }],
     }
   },
   {

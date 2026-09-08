@@ -1,9 +1,8 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Activity, Briefcase, Building, Users, FileText } from "lucide-react";
+import { Activity, Briefcase, Building } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 

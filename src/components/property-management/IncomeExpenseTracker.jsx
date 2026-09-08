@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function IncomeExpenseTracker({ propertyId }) {

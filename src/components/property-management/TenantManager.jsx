@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Users, Plus, Mail, Phone, Calendar, DollarSign } from "lucide-react";
+import { Users, Plus, Mail, Phone, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TenantManager({ propertyId }) {

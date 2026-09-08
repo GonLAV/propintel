@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,38 +40,7 @@ export function AutomatedReports() {
 
   const [recipientInput, setRecipientInput] = useState('')
 
-  useEffect(() => {
-    checkScheduledReports()
-    const interval = setInterval(checkScheduledReports, 60000)
-    return () => clearInterval(interval)
-  }, [reports])
-
-  const checkScheduledReports = () => {
-    const now = new Date()
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-    const currentDayOfMonth = now.getDate()
-
-    reports?.forEach(report => {
-      if (!report.isActive) return
-
-      let shouldSend = false
-
-      if (report.frequency === 'daily' && report.time === currentTime) {
-        shouldSend = true
-      } else if (report.frequency === 'weekly' && report.dayOfWeek === currentDay && report.time === currentTime) {
-        shouldSend = true
-      } else if (report.frequency === 'monthly' && report.dayOfMonth === currentDayOfMonth && report.time === currentTime) {
-        shouldSend = true
-      }
-
-      if (shouldSend && (!report.lastSent || new Date(report.lastSent).toDateString() !== now.toDateString())) {
-        sendScheduledReport(report)
-      }
-    })
-  }
-
-  const sendScheduledReport = async (report) => {
+  const sendScheduledReport = useCallback(async (report) => {
     try {
       const analyzer = new TransactionTrendAnalyzer([])
       const trendReport = report.frequency === 'monthly' 
@@ -114,7 +83,38 @@ export function AutomatedReports() {
       setSentReports(current => [failedReport, ...(current || [])])
       toast.error('שגיאה בשליחת הדוח')
     }
-  }
+  }, [setReports, setSentReports])
+
+  const checkScheduledReports = useCallback(() => {
+    const now = new Date()
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    const currentDayOfMonth = now.getDate()
+
+    reports?.forEach(report => {
+      if (!report.isActive) return
+
+      let shouldSend = false
+
+      if (report.frequency === 'daily' && report.time === currentTime) {
+        shouldSend = true
+      } else if (report.frequency === 'weekly' && report.dayOfWeek === currentDay && report.time === currentTime) {
+        shouldSend = true
+      } else if (report.frequency === 'monthly' && report.dayOfMonth === currentDayOfMonth && report.time === currentTime) {
+        shouldSend = true
+      }
+
+      if (shouldSend && (!report.lastSent || new Date(report.lastSent).toDateString() !== now.toDateString())) {
+        sendScheduledReport(report)
+      }
+    })
+  }, [reports, sendScheduledReport])
+
+  useEffect(() => {
+    checkScheduledReports()
+    const interval = setInterval(checkScheduledReports, 60000)
+    return () => clearInterval(interval)
+  }, [checkScheduledReports])
 
   const handleCreateReport = () => {
     if (!formData.name || !formData.recipients || formData.recipients.length === 0) {

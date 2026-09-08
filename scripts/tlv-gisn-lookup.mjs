@@ -1,4 +1,3 @@
-/* eslint-env node */
 // Tel Aviv GISN lookup helper
 // - Discovers ArcGIS layers for cadastre/plan/permit by field hints
 // - Queries gush/helka or planId

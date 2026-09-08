@@ -1,4 +1,3 @@
-/* eslint-env node */
 // Download PDFs listed in public/gisn-doc-links.json into public/gisn/
 // Usage:
 //   node scripts/gisn-docs-download.mjs [id ...]
