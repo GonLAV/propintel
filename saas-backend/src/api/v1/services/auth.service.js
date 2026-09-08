@@ -36,7 +36,9 @@ async function issueRefreshToken({ userId, tenantId, familyId, ip, userAgent, cl
   return { token, id, familyId: familyId || id };
 }
 
-async function register({ email, password, fullName, tenantName, tenantSlug, ip, userAgent }) {
+async function register({
+  email, password, fullName, tenantName, tenantSlug, licenseNumber, ip, userAgent,
+}) {
   const existing = await tenantsRepo.findBySlug(tenantSlug);
   if (existing) throw Conflict('Tenant slug already in use');
 
@@ -44,7 +46,7 @@ async function register({ email, password, fullName, tenantName, tenantSlug, ip,
     const tenant = await tenantsRepo.create(client, { name: tenantName, slug: tenantSlug });
     const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
     const user = await usersRepo.create(client, {
-      tenantId: tenant.id, email, passwordHash, fullName, role: 'owner',
+      tenantId: tenant.id, email, passwordHash, fullName, licenseNumber, role: 'owner',
     });
     const accessToken = signAccessToken({ sub: user.id, tenantId: tenant.id, role: user.role });
     const { token: refreshToken } = await issueRefreshToken({

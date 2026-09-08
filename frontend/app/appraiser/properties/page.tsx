@@ -15,6 +15,18 @@ type Property = {
   area_sqm: string | null
   rooms: string | null
   created_at: string
+  valuations_count?: number
+  reports_count?: number
+}
+
+function statusBadge(p: Property) {
+  if ((p.reports_count ?? 0) > 0) {
+    return { label: 'הופק דוח', className: 'bg-teal-500/15 text-teal-300' }
+  }
+  if ((p.valuations_count ?? 0) > 0) {
+    return { label: 'יש שומה, אין דוח', className: 'bg-amber-500/15 text-amber-300' }
+  }
+  return { label: 'אין שומה', className: 'bg-white/10 text-white/50' }
 }
 
 export default function PropertiesPage() {
@@ -60,20 +72,28 @@ export default function PropertiesPage() {
       )}
 
       <div className="grid gap-3">
-        {items?.map((p) => (
-          <Link key={p.id} href={`/appraiser/properties/${p.id}`}>
-            <Card className="flex items-center justify-between p-4 transition hover:border-teal-300/40">
-              <div>
-                <div className="font-medium text-white">{p.address}</div>
-                <div className="text-sm text-white/50">
-                  {p.city} · {PROPERTY_TYPES[p.property_type] || p.property_type}
-                  {p.area_sqm ? ` · ${p.area_sqm} מ״ר` : ''}
+        {items?.map((p) => {
+          const badge = statusBadge(p)
+          return (
+            <Link key={p.id} href={`/appraiser/properties/${p.id}`}>
+              <Card className="flex items-center justify-between p-4 transition hover:border-teal-300/40">
+                <div>
+                  <div className="font-medium text-white">{p.address}</div>
+                  <div className="text-sm text-white/50">
+                    {p.city} · {PROPERTY_TYPES[p.property_type] || p.property_type}
+                    {p.area_sqm ? ` · ${p.area_sqm} מ״ר` : ''}
+                  </div>
                 </div>
-              </div>
-              <span className="text-teal-300">›</span>
-            </Card>
-          </Link>
-        ))}
+                <div className="flex items-center gap-3">
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                  <span className="text-teal-300">›</span>
+                </div>
+              </Card>
+            </Link>
+          )
+        })}
       </div>
     </AppraiserShell>
   )

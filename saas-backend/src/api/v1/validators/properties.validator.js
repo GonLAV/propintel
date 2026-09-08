@@ -15,6 +15,15 @@ const create = z.object({
   rooms: z.number().min(0).max(50).optional(),
   floor: z.number().int().min(-5).max(200).optional(),
   yearBuilt: z.number().int().min(1700).max(2100).optional(),
+  // Legal parcel identifiers (גוש/חלקה/תת-חלקה) — required on a real
+  // official appraisal (especially for a bank), optional here since a
+  // gross-estimate case can proceed without them.
+  block: z.string().max(32).optional(),
+  parcel: z.string().max(32).optional(),
+  subParcel: z.string().max(32).optional(),
+  // Site-visit / determining date (מועד ביקור וקביעה) — separate from the
+  // report-generation timestamp; a real appraiser visits once per case.
+  visitDate: z.coerce.date().optional(),
   metadata: z.record(z.any()).optional(),
 }).strict();
 

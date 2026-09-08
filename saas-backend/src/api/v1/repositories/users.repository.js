@@ -2,7 +2,7 @@
 
 const { query } = require('../../../config/database');
 
-const SAFE = `id, tenant_id, email, full_name, role, status, last_login_at,
+const SAFE = `id, tenant_id, email, full_name, license_number, role, status, last_login_at,
               created_at, updated_at`;
 
 async function findByEmail(tenantId, email) {
@@ -39,13 +39,13 @@ async function findById(tenantId, id) {
 
 async function create(client, payload) {
   const {
-    tenantId, email, passwordHash, fullName, role = 'member', createdBy = null,
+    tenantId, email, passwordHash, fullName, licenseNumber = null, role = 'member', createdBy = null,
   } = payload;
   const { rows } = await client.query(
-    `INSERT INTO users (tenant_id, email, password_hash, full_name, role, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO users (tenant_id, email, password_hash, full_name, license_number, role, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${SAFE}`,
-    [tenantId, email, passwordHash, fullName, role, createdBy],
+    [tenantId, email, passwordHash, fullName, licenseNumber, role, createdBy],
   );
   return rows[0];
 }

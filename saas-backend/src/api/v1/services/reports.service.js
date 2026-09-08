@@ -100,7 +100,9 @@ function renderMarkdown(p) {
   return lines.join('\n');
 }
 
-async function create(tenantId, { valuationId, title, format, createdBy }) {
+async function create(tenantId, {
+  valuationId, title, format, createdBy, clientName, purpose,
+}) {
   const valuation = await valRepo.findById(tenantId, valuationId);
   if (!valuation) throw NotFound('Valuation not found');
   if (valuation.status !== 'completed') {
@@ -112,7 +114,9 @@ async function create(tenantId, { valuationId, title, format, createdBy }) {
   const base = buildPayload({ valuation, property });
   const payload = format === 'markdown' ? { ...base, markdown: renderMarkdown(base) } : base;
 
-  let report = await repo.create(tenantId, { valuationId, title, format, payload, createdBy });
+  let report = await repo.create(tenantId, {
+    valuationId, title, format, payload, createdBy, clientName, purpose,
+  });
 
   if (format === 'pdf') {
     const [tenant, appraiser] = await Promise.all([
@@ -124,8 +128,20 @@ async function create(tenantId, { valuationId, title, format, createdBy }) {
       title,
       generatedAt: base.generatedAt,
       office: { name: tenant?.name || null },
-      appraiser: { fullName: appraiser?.full_name || null, email: appraiser?.email || null },
-      property: { ...base.property, externalRef: property.external_ref },
+      appraiser: {
+        fullName: appraiser?.full_name || null,
+        email: appraiser?.email || null,
+        licenseNumber: appraiser?.license_number || null,
+      },
+      report: { clientName: report.client_name, purpose: report.purpose },
+      property: {
+        ...base.property,
+        externalRef: property.external_ref,
+        block: property.block,
+        parcel: property.parcel,
+        subParcel: property.sub_parcel,
+        visitDate: property.visit_date,
+      },
       valuation: { ...base.valuation, valuationDate: valuation.created_at },
       comparables: extractComparables(valuation),
       reconciliation: extractReconciliation(valuation),

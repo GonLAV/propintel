@@ -22,6 +22,7 @@ function slugify(value: string) {
 export default function AppraiserRegisterPage() {
   const router = useRouter()
   const [fullName, setFullName] = useState('')
+  const [licenseNumber, setLicenseNumber] = useState('')
   const [tenantName, setTenantName] = useState('')
   const [tenantSlug, setTenantSlug] = useState('')
   const [email, setEmail] = useState('')
@@ -40,6 +41,7 @@ export default function AppraiserRegisterPage() {
         body: JSON.stringify({
           email, password, fullName, tenantName,
           tenantSlug: tenantSlug || slugify(tenantName),
+          ...(licenseNumber ? { licenseNumber } : {}),
         }),
       })
       const data = await res.json()
@@ -60,6 +62,9 @@ export default function AppraiserRegisterPage() {
         <form onSubmit={submit} className="flex flex-col gap-4">
           <Field label="שם מלא">
             <Input required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="ישראל ישראלי" />
+          </Field>
+          <Field label="מספר רישיון שמאי (אופציונלי)">
+            <Input value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} placeholder="12345" />
           </Field>
           <Field label="שם המשרד">
             <Input required value={tenantName} onChange={(e) => setTenantName(e.target.value)} placeholder="משרד שמאות ישראלי" />

@@ -3,7 +3,7 @@
 const { query } = require('../../../config/database');
 
 const COLS = `id, tenant_id, external_ref, address, city, property_type,
-              area_sqm, rooms, floor, year_built, metadata,
+              area_sqm, rooms, floor, year_built, block, parcel, sub_parcel, visit_date, metadata,
               created_at, updated_at, created_by`;
 
 const FIELD_MAP = {
@@ -15,6 +15,10 @@ const FIELD_MAP = {
   rooms: 'rooms',
   floor: 'floor',
   yearBuilt: 'year_built',
+  block: 'block',
+  parcel: 'parcel',
+  subParcel: 'sub_parcel',
+  visitDate: 'visit_date',
   metadata: 'metadata',
 };
 
@@ -47,30 +51,56 @@ async function findById(tenantId, id) {
 
 async function list(tenantId, { q, city, propertyType, limit, offset }) {
   const params = [tenantId];
-  let where = 'tenant_id = $1 AND deleted_at IS NULL';
+  let where = 'p.tenant_id = $1 AND p.deleted_at IS NULL';
   if (q) {
     params.push(`%${q}%`);
-    where += ` AND (address ILIKE $${params.length} OR external_ref ILIKE $${params.length})`;
+    where += ` AND (p.address ILIKE $${params.length} OR p.external_ref ILIKE $${params.length})`;
   }
   if (city) {
     params.push(city);
-    where += ` AND city = $${params.length}`;
+    where += ` AND p.city = $${params.length}`;
   }
   if (propertyType) {
     params.push(propertyType);
-    where += ` AND property_type = $${params.length}`;
+    where += ` AND p.property_type = $${params.length}`;
   }
   params.push(limit, offset);
+  // One query, LEFT JOINed aggregate counts (not N+1): how many valuations
+  // and reports each property has, for the case-status badge on the list
+  // page ("אין שומה" / "יש שומה, אין דוח" / "הופק דוח").
+  const cols = COLS.split(',').map((c) => `p.${c.trim()}`).join(', ');
   const { rows } = await query(
-    `SELECT ${COLS}, COUNT(*) OVER() AS total_count
-       FROM properties
+    `SELECT ${cols}, COUNT(*) OVER() AS total_count,
+            COALESCE(v.valuations_count, 0) AS valuations_count,
+            COALESCE(r.reports_count, 0) AS reports_count
+       FROM properties p
+       LEFT JOIN (
+         SELECT property_id, COUNT(*) AS valuations_count
+           FROM valuations
+          WHERE tenant_id = $1 AND deleted_at IS NULL
+          GROUP BY property_id
+       ) v ON v.property_id = p.id
+       LEFT JOIN (
+         SELECT val.property_id, COUNT(rep.id) AS reports_count
+           FROM valuations val
+           JOIN reports rep ON rep.valuation_id = val.id AND rep.deleted_at IS NULL
+          WHERE val.tenant_id = $1 AND val.deleted_at IS NULL
+          GROUP BY val.property_id
+       ) r ON r.property_id = p.id
       WHERE ${where}
-   ORDER BY created_at DESC
+   ORDER BY p.created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );
   const total = rows[0] ? Number(rows[0].total_count) : 0;
-  return { rows: rows.map(({ total_count, ...r }) => r), total };
+  return {
+    rows: rows.map(({ total_count, valuations_count, reports_count, ...r }) => ({
+      ...r,
+      valuations_count: Number(valuations_count),
+      reports_count: Number(reports_count),
+    })),
+    total,
+  };
 }
 
 async function update(tenantId, id, payload) {

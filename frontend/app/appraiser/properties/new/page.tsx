@@ -11,6 +11,7 @@ export default function NewPropertyPage() {
   const [form, setForm] = useState({
     address: '', city: '', propertyType: 'apartment',
     areaSqm: '', rooms: '', floor: '', yearBuilt: '',
+    block: '', parcel: '', subParcel: '', visitDate: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,6 +32,10 @@ export default function NewPropertyPage() {
       if (form.rooms) payload.rooms = Number(form.rooms)
       if (form.floor) payload.floor = Number(form.floor)
       if (form.yearBuilt) payload.yearBuilt = Number(form.yearBuilt)
+      if (form.block) payload.block = form.block
+      if (form.parcel) payload.parcel = form.parcel
+      if (form.subParcel) payload.subParcel = form.subParcel
+      if (form.visitDate) payload.visitDate = form.visitDate
 
       const created = await apiSend<{ id: string }>('POST', '/properties', payload)
       router.push(`/appraiser/properties/${created.id}`)
@@ -73,6 +78,20 @@ export default function NewPropertyPage() {
               <Input type="number" value={form.yearBuilt} onChange={(e) => set('yearBuilt', e.target.value)} />
             </Field>
           </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="גוש">
+              <Input value={form.block} onChange={(e) => set('block', e.target.value)} />
+            </Field>
+            <Field label="חלקה">
+              <Input value={form.parcel} onChange={(e) => set('parcel', e.target.value)} />
+            </Field>
+            <Field label="תת חלקה">
+              <Input value={form.subParcel} onChange={(e) => set('subParcel', e.target.value)} />
+            </Field>
+          </div>
+          <Field label="מועד ביקור בנכס (אופציונלי)">
+            <Input type="date" value={form.visitDate} onChange={(e) => set('visitDate', e.target.value)} />
+          </Field>
           <ErrorNote message={error} />
           <Button type="submit" disabled={loading}>{loading ? 'שומר/ת…' : 'שמירה והמשך לשומה'}</Button>
         </form>

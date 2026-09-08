@@ -15,6 +15,10 @@ const register = z.object({
   fullName: z.string().min(1).max(120),
   tenantName: z.string().min(2).max(120),
   tenantSlug: z.string().min(2).max(64).regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/),
+  // Appraiser license number (מספר רישיון שמאי) — a property of the
+  // individual, not the tenant/office. Optional: a report signature block
+  // falls back to a generic label when it isn't provided.
+  licenseNumber: z.string().min(1).max(64).optional(),
 }).strict();
 
 const login = z.object({

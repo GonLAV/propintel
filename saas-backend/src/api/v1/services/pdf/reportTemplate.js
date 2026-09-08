@@ -170,7 +170,7 @@ function apartmentDescription(property) {
 
 function renderReportHtml(payload) {
   const {
-    reportId, title, generatedAt, office, appraiser,
+    reportId, title, generatedAt, office, appraiser, report,
     property, valuation, comparables, reconciliation, costBreakdown,
   } = payload;
   const currency = valuation.currency || 'ILS';
@@ -179,6 +179,7 @@ function renderReportHtml(payload) {
     : '—';
   const officeName = office?.name || 'משרד שמאות מקרקעין';
   const appraiserName = appraiser?.fullName || appraiser?.email || 'שמאי/ת מקרקעין';
+  const hasParcel = property.block || property.parcel || property.subParcel;
 
   const html = `<!doctype html>
 <html dir="rtl" lang="he">
@@ -265,11 +266,15 @@ function renderReportHtml(payload) {
   </div>
 
   <h2>1. שמות המזמינים</h2>
-  ${gapNote('פרטי מזמין/ה השומה (שם, ת״ז) אינם נאספים כיום במוצר — שדה זה יתווסף בגרסה הבאה.')}
+  ${report?.clientName
+    ? `<p class="section-lead">מזמין/ת השומה: ${escapeHtml(report.clientName)}</p>`
+    : gapNote('פרטי מזמין/ה השומה לא צוינו עבור דוח זה — ניתן להוסיפם בעת הפקת הדוח.')}
 
   <h2>2. מטרת השומה</h2>
   <p class="section-lead">אמידת שווי שוק של הנכס שבנדון, לפי הגישה/ות שפורטו בסעיף 8 להלן.</p>
-  ${gapNote('מטרת הזמנה עסקית ספציפית (מכירה / משכנתא / דיווח חשבונאי וכד׳) אינה נאספת כיום — מוצג נוסח כללי בלבד.')}
+  ${report?.purpose
+    ? `<p class="section-lead">מטרת ההזמנה: ${escapeHtml(report.purpose)}</p>`
+    : gapNote('מטרת הזמנה עסקית ספציפית (מכירה / משכנתא / דיווח חשבונאי וכד׳) לא צוינה עבור דוח זה — מוצג נוסח כללי בלבד.')}
 
   <h2>3. זיהוי הנכס</h2>
   <table class="fields">
@@ -286,11 +291,27 @@ function renderReportHtml(payload) {
       <td class="value">${property.externalRef ? escapeHtml(property.externalRef) : '—'}</td>
     </tr>
   </table>
-  ${gapNote('גוש / חלקה / תת-חלקה אינם שדות מובנים במערכת כיום (אלא אם צוינו כאסמכתא חופשית לעיל) — פער סכימה שיש להשלים.')}
+  ${hasParcel ? `
+  <table class="fields">
+    <tr>
+      <td class="label">גוש</td>
+      <td class="label">חלקה</td>
+      <td class="label">תת-חלקה</td>
+      <td class="label">&nbsp;</td>
+    </tr>
+    <tr>
+      <td class="value">${property.block ? escapeHtml(property.block) : '—'}</td>
+      <td class="value">${property.parcel ? escapeHtml(property.parcel) : '—'}</td>
+      <td class="value">${property.subParcel ? escapeHtml(property.subParcel) : '—'}</td>
+      <td class="value">&nbsp;</td>
+    </tr>
+  </table>` : gapNote('גוש / חלקה / תת-חלקה לא צוינו עבור נכס זה (אלא אם נמסרו כאסמכתא חופשית לעיל).')}
 
   <h2>4. הביקור בנכס</h2>
-  <p class="section-lead">תאריך קובע לשומה (מועד עריכת השומה במערכת): ${escapeHtml(formatDate(valuation.valuationDate))}.</p>
-  ${gapNote('שומה זו הופקה ללא ביקור פיזי מתועד במערכת (אין כיום תהליך ביקור נכס במוצר). יש להשלים ביקור בנכס בהתאם לכללי האתיקה והתקינה המקצועית בטרם מסירת חוות דעת סופית.')}
+  ${property.visitDate
+    ? `<p class="section-lead">מועד הביקור בנכס (המועד הקובע לשומה): ${escapeHtml(formatDate(property.visitDate))}.</p>`
+    : `<p class="section-lead">תאריך עריכת השומה במערכת: ${escapeHtml(formatDate(valuation.valuationDate))}.</p>
+  ${gapNote('שומה זו הופקה ללא תאריך ביקור מתועד בנכס. יש להשלים ביקור בנכס בהתאם לכללי האתיקה והתקינה המקצועית בטרם מסירת חוות דעת סופית.')}`}
 
   <h2>5. זכויות משפטיות בנכס</h2>
   ${gapNote('נתוני בעלות/זכויות ואסמכתת רישום (נסח טאבו וכד׳) אינם נאספים כיום במוצר.')}
@@ -354,7 +375,7 @@ function renderReportHtml(payload) {
     <p>ולראיה באתי על החתום,</p>
     <div class="line">
       ${escapeHtml(appraiserName)}<br>
-      שמאי/ת מקרקעין
+      שמאי/ת מקרקעין${appraiser?.licenseNumber ? `, מספר רישיון ${escapeHtml(appraiser.licenseNumber)}` : ''}
     </div>
   </div>
 

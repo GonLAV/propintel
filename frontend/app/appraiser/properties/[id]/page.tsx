@@ -28,6 +28,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [addingComp, setAddingComp] = useState(false)
   const [runningMethod, setRunningMethod] = useState<string | null>(null)
   const [generatingReportFor, setGeneratingReportFor] = useState<string | null>(null)
+  const [reportFormFor, setReportFormFor] = useState<string | null>(null)
+  const [reportForm, setReportForm] = useState({ clientName: '', purpose: '' })
 
   async function load() {
     try {
@@ -92,9 +94,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     setError(null)
     try {
       const report = await apiSend<{ id: string }>('POST', '/reports', {
-        valuationId, title: `שומת ${property.address}`, format: 'pdf',
+        valuationId,
+        title: `שומת ${property.address}`,
+        format: 'pdf',
+        ...(reportForm.clientName ? { clientName: reportForm.clientName } : {}),
+        ...(reportForm.purpose ? { purpose: reportForm.purpose } : {}),
       })
       window.open(`/api/appraiser/reports/${report.id}/pdf`, '_blank')
+      setReportFormFor(null)
+      setReportForm({ clientName: '', purpose: '' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בהפקת הדוח')
     } finally {
@@ -183,11 +191,42 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                           {v.result?.sampleSize ? ` · ${v.result.sampleSize} עסקאות` : ''}
                           {v.result?.landValueSource === 'market-abstraction' ? ' · קרקע מבוססת-שוק' : ''}
                         </div>
-                        <Button variant="ghost" className="mt-2 w-full"
-                          disabled={generatingReportFor !== null}
-                          onClick={() => generateReport(v.id)}>
-                          {generatingReportFor === v.id ? 'מפיק/ה דוח…' : '📄 הפק דוח PDF'}
-                        </Button>
+                        {reportFormFor === v.id ? (
+                          <div className="mt-2 flex flex-col gap-2 rounded-lg bg-white/5 p-3">
+                            <Field label="מזמין/ת השומה">
+                              <Input value={reportForm.clientName}
+                                onChange={(e) => setReportForm((f) => ({ ...f, clientName: e.target.value }))}
+                                placeholder="לדוגמה: בנק הפועלים / ישראל ישראלי" />
+                            </Field>
+                            <Field label="מטרת השומה">
+                              <Select value={reportForm.purpose}
+                                onChange={(e) => setReportForm((f) => ({ ...f, purpose: e.target.value }))}>
+                                <option value="">— ללא ציון —</option>
+                                <option value="רכישה / מכירה">רכישה / מכירה</option>
+                                <option value="משכנתא">משכנתא</option>
+                                <option value="דיווח חשבונאי / מס">דיווח חשבונאי / מס</option>
+                                <option value="הליך משפטי">הליך משפטי</option>
+                                <option value="אחר">אחר</option>
+                              </Select>
+                            </Field>
+                            <div className="flex gap-2">
+                              <Button className="flex-1" disabled={generatingReportFor !== null}
+                                onClick={() => generateReport(v.id)}>
+                                {generatingReportFor === v.id ? 'מפיק/ה דוח…' : 'הפקת הדוח'}
+                              </Button>
+                              <Button variant="ghost" disabled={generatingReportFor !== null}
+                                onClick={() => setReportFormFor(null)}>
+                                ביטול
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button variant="ghost" className="mt-2 w-full"
+                            disabled={generatingReportFor !== null}
+                            onClick={() => setReportFormFor(v.id)}>
+                            📄 הפק דוח PDF
+                          </Button>
+                        )}
                       </>
                     )}
                   </div>
