@@ -37,7 +37,10 @@
 - [ ] בדיקות לשכבת השירותים החדשה (כשתיבנה).
 - [ ] כיסוי בדיקות באחוזים — `npm run test:coverage` טרם הורץ.
 
-### 5. Infra / CI
+### 5. תלויות (חדש — 2026-09-08, מ-`npm audit`)
+- [ ] **11 פגיעויות: 2 low, 4 moderate, 5 high.** טרם נבדק אילו הן ב-dev-dependencies בלבד (סיכון נמוך) לעומת תלויות ייצור (סיכון גבוה). **לפני `npm audit fix` — לבדוק breaking changes**, לא להריץ עיוור.
+
+### 6. Infra / CI
 - [x] CI לבדיקות איכות בסיסיות (production quality gates, security scanning — לפי git log).
 - [ ] `lint` נקי — נמדד 2026-09-08: **69 בעיות (1 error, 68 warnings)**. רוב האזהרות הן `no-unused-vars`/`react-refresh` קלות לתיקון; ה-error היחיד (`no-empty-pattern`, `src/lib/PageNotFound.jsx:6`) הוא באג אמיתי קטן, לא סגנון.
 - [ ] `node_modules` לא היה מותקן בסביבת הפיתוח הזו — `npm ci` הריץ בהצלחה (573 חבילות). אם זה קורה גם בסביבות אחרות, כדאי לוודא שה-README מנחה `npm ci` כצעד ראשון.

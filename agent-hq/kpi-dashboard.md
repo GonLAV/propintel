@@ -8,8 +8,8 @@
 
 | מדד | ערך אחרון | תאריך מדידה | מגמה |
 |---|---|---|---|
-| שגיאות lint (`npm run lint`) | **69 בעיות: 1 error, 68 warnings** — ה-error יחיד: `no-empty-pattern` ב-`src/lib/PageNotFound.jsx:6` | 2026-09-08 | — (מדידה ראשונה) |
-| בדיקות (`npm run test`) | **24/24 עוברות, 4 קבצי בדיקה** (`valuationEngine`, `aiComparableEngine`, `mvpComparableScoring`, `aiReportGenerator`) | 2026-09-08 | — (מדידה ראשונה) |
+| שגיאות lint (`npm run lint`) | **0 errors, 67 warnings** — ה-error היחיד (`no-empty-pattern`, `PageNotFound.jsx:6`) תוקן ע"י אהליאב (קומיט `c488038`) | 2026-09-08 | ⬇ שופר (69→67, כולל תיקון ה-error) |
+| בדיקות (`npm run test`) | **24/24 עוברות, 4 קבצי בדיקה** (`valuationEngine`, `aiComparableEngine`, `mvpComparableScoring`, `aiReportGenerator`) | 2026-09-08 | יציב |
 | כיסוי בדיקות | לא נמדד עדיין (`npm run test:coverage` לא הורץ) | — | — |
 | פריטי חוב טכני פתוחים (`product-status.md`) | 10 פתוחים / 2 סגורים | 2026-09-08 | — |
 | סטטוס CI (build/lint/test) | ראו GitHub Actions | — | — |
@@ -27,4 +27,4 @@
 
 ## עדכון אחרון
 
-**2026-09-08** — מדידה ראשונה בפועל: `npm ci` (573 חבילות, לא היו מותקנות), `npm run lint` (69 בעיות), `npm run test` (24/24 עוברות). הצעד הבא: לתקן את שגיאת ה-lint היחידה (`no-empty-pattern`), ואז להתחיל בסגירת פריטי `product-status.md` לפי סדר עדיפויות. פגיעויות `npm audit` (11, כולל 5 high) טרם נבדקו — לא ידוע אם הן ב-dev-dependencies בלבד או משפיעות על ייצור; זו משימה נפרדת, לא הוכרעה כאן.
+**2026-09-08** — מדידה ראשונה: `npm ci` (573 חבילות), lint (69 בעיות), test (24/24). **עודכן באותו יום:** ה-error היחיד תוקן (ראו למעלה) — כעת 0 errors/67 warnings. 67 האזהרות הנותרות הוקצו ל-GitHub Copilot (17 קבצים, ראו `product-status.md`). פגיעויות `npm audit` (11, כולל 5 high) נוספו כפריט חדש ב-`product-status.md` — טרם נבדקו לעומק.

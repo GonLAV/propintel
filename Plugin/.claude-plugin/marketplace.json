@@ -49,6 +49,11 @@
       "name": "chur-gen",
       "version": "1.0.0",
       "source": "./chur-gen"
+    },
+    {
+      "name": "aharon-gen",
+      "version": "1.0.0",
+      "source": "./aharon-gen"
     }
   ],
   "name": "local-desktop-app-uploads",
