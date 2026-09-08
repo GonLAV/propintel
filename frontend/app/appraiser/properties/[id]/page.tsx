@@ -27,6 +27,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [compForm, setCompForm] = useState({ areaSqm: '', salePrice: '', soldAt: '', floor: '', rooms: '' })
   const [addingComp, setAddingComp] = useState(false)
   const [runningMethod, setRunningMethod] = useState<string | null>(null)
+  const [generatingReportFor, setGeneratingReportFor] = useState<string | null>(null)
 
   async function load() {
     try {
@@ -82,6 +83,22 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       setError(err instanceof Error ? err.message : 'שגיאה בחישוב השומה')
     } finally {
       setRunningMethod(null)
+    }
+  }
+
+  async function generateReport(valuationId: string) {
+    if (!property) return
+    setGeneratingReportFor(valuationId)
+    setError(null)
+    try {
+      const report = await apiSend<{ id: string }>('POST', '/reports', {
+        valuationId, title: `שומת ${property.address}`, format: 'pdf',
+      })
+      window.open(`/api/appraiser/reports/${report.id}/pdf`, '_blank')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בהפקת הדוח')
+    } finally {
+      setGeneratingReportFor(null)
     }
   }
 
@@ -160,11 +177,18 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       </span>
                     </div>
                     {v.status === 'completed' && (
-                      <div className="mt-1 text-white/50">
-                        ביטחון {Math.round(Number(v.confidence) * 100)}%
-                        {v.result?.sampleSize ? ` · ${v.result.sampleSize} עסקאות` : ''}
-                        {v.result?.landValueSource === 'market-abstraction' ? ' · קרקע מבוססת-שוק' : ''}
-                      </div>
+                      <>
+                        <div className="mt-1 text-white/50">
+                          ביטחון {Math.round(Number(v.confidence) * 100)}%
+                          {v.result?.sampleSize ? ` · ${v.result.sampleSize} עסקאות` : ''}
+                          {v.result?.landValueSource === 'market-abstraction' ? ' · קרקע מבוססת-שוק' : ''}
+                        </div>
+                        <Button variant="ghost" className="mt-2 w-full"
+                          disabled={generatingReportFor !== null}
+                          onClick={() => generateReport(v.id)}>
+                          {generatingReportFor === v.id ? 'מפיק/ה דוח…' : '📄 הפק דוח PDF'}
+                        </Button>
+                      </>
                     )}
                   </div>
                 ))}

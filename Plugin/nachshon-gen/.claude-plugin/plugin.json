@@ -1,0 +1,6 @@
+{
+  "name": "nachshon-gen",
+  "version": "1.0.0",
+  "description": "נחשון — שמאי-דמה שמפעיל את PropIntel כמו שמאי אמיתי עובד, ומדווח בשיפוט מקצועי אמיתי מה חסר ומה צריך. לא UX גנרי — צורך שמאי אמיתי, מבוסס domain-knowledge/report-standards.",
+  "keywords": ["partner-agent", "persona", "appraiser-simulation", "propintel", "hebrew"]
+}

@@ -59,6 +59,11 @@
       "name": "uri-gen",
       "version": "1.0.0",
       "source": "./uri-gen"
+    },
+    {
+      "name": "nachshon-gen",
+      "version": "1.0.0",
+      "source": "./nachshon-gen"
     }
   ],
   "name": "local-desktop-app-uploads",
