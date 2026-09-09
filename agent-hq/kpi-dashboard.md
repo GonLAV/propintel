@@ -24,9 +24,15 @@
 | Lint | 0 problems | `tsc --noEmit`: 0 errors |
 | בדיקות | 36/36 (בזמן המדידה — עלה ל-39/39 אחרי שאהליאב סיים PDF export) | 8/8 |
 | Build | — | production build עובר, 29 routes |
-| `npm audit` | 7 (1 low, 2 moderate, 4 high) | 6 (1 low, 5 high — רובם מ-`next` עצמו) |
+| `npm audit` | **0** (תוקן — ראו למטה) | **0** (תוקן — ראו למטה) |
 
 **הערה:** saas-backend נערך במקביל למדידה (אהליאב עבד על PDF export) — המספרים תקפים לרגע המדידה, לא final. לא נמצאה רגרסיה.
+
+### עדכון 2026-09-09 — סגירת פריט #1 מישיבת הצוות (npm audit)
+
+- **saas-backend**: 7 פגיעויות → **0**. תיקון: `overrides: {"qs": "^6.16.0"}`. אומת עצמאית: `npm ci` נקי, `npm audit` 0, סוויטת הבדיקות המלאה 45/45 עוברות, lint נקי, ושרת אמיתי רץ עם בדיקת עשן חיה (הרשמה → יצירת נכס → `GET /properties` עם פרמטר `q` בעברית → `GET /reports` עם סינון `propertyId`) — כולם 200 עם נתונים נכונים.
+- **frontend**: 7 פגיעויות (כולל `next` ברמת **critical**!) → **0**. הסיבה לפער מהמדידה הקודמת (6): התגלה שה-lockfile היה "תקוע" על `next@16.2.4` הפגיע בעוד ש-`node_modules` בפועל כבר הכיל `16.3.4` — פער lockfile/install. תוקן: `npm install next@latest` (מסנכרן ל-`^16.3.4`) + `npm audit fix` (מטפל בתלויות טרנזיטיביות: browserslist, nanoid, postcss, postcss-selector-parser, baseline-browser-mapping) — ללא `--force`, בלי שדרוגי-שבירה. אומת: `tsc --noEmit` נקי, `next build` עובר (30 routes), `vitest` 8/8, סקריפטי האבטחה הפנימיים (`security:scan`+`security:audit`) עוברים, ובדיקת עשן חיה של שרת ה-dev (`/appraiser/login` מחזיר 200 תחת Next 16.3.4 בפועל).
+- קומיט: `d556ea0`, נדחף ל-`claude/plugins-folder-hooks-541i5v`.
 
 ## מדדי מוצר-עתידיים (יופעלו כשיהיו משתמשים)
 
