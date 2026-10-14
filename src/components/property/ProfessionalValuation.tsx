@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Property, Comparable } from '@/lib/types'
-import { ValuationEngine, type ValuationResult } from '@/lib/valuationEngine'
+import type { ValuationResult } from '@/lib/valuationEngine'
+import { valuate } from '@/services/valuationService'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -52,21 +53,30 @@ export function ProfessionalValuation({ property, comparables, onSaveValuation }
 
       switch (activeMethod) {
         case 'comparable':
-          result = proMode
-            ? ValuationEngine.calculateComparableSalesApproachProfessional(property, comparables)
-            : ValuationEngine.calculateComparableSalesApproach(property, comparables)
+          result = (await valuate({
+            method: 'comparable-sales',
+            property,
+            comparables,
+            professional: proMode
+          })).legacyResult as ValuationResult
           break
         case 'cost':
-          result = ValuationEngine.calculateCostApproach(property, landValue, constructionCost)
+          result = (await valuate({
+            method: 'cost-approach',
+            property,
+            landValue,
+            constructionCostPerSqm: constructionCost
+          })).legacyResult as ValuationResult
           break
         case 'income':
-          result = ValuationEngine.calculateIncomeApproach(
+          result = (await valuate({
+            method: 'income-approach',
             property,
             monthlyRent,
-            vacancyRate / 100,
-            expenseRatio / 100,
-            capRate / 100
-          )
+            vacancyRate: vacancyRate / 100,
+            expenseRatio: expenseRatio / 100,
+            capRate: capRate / 100
+          })).legacyResult as ValuationResult
           break
       }
 
