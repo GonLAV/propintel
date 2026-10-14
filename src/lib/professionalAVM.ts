@@ -252,6 +252,15 @@ export class ProfessionalAVM {
     
     const startTime = Date.now()
     const reportNumber = this.generateReportNumber()
+    const subjectArea = subject.details?.builtArea || 0
+
+    if (!Number.isFinite(subjectArea) || subjectArea <= 0) {
+      throw new Error('ProfessionalAVM requires a positive subject built area')
+    }
+
+    if (!Array.isArray(transactions)) {
+      throw new Error('ProfessionalAVM requires a transactions array')
+    }
     
     // Step 1: Filter valid transactions
     let validTransactions = this.filterValidTransactions(transactions)
@@ -277,6 +286,10 @@ export class ProfessionalAVM {
     comparables = comparables.filter(
       c => c.similarityScore! >= this.config.minSimilarityScore
     )
+
+    if (comparables.length === 0) {
+      throw new Error('ProfessionalAVM requires at least one valid comparable transaction')
+    }
     
     // Step 8: Check if we have enough comparables
     const warnings: string[] = []
@@ -296,8 +309,7 @@ export class ProfessionalAVM {
     const weightedPricePerSqm = this.calculateWeightedAverage(comparables)
     
     // Step 11: Calculate estimated value
-    const usableArea = subject.details?.builtArea || 0
-    const estimatedValue = Math.round(weightedPricePerSqm * usableArea)
+    const estimatedValue = Math.round(weightedPricePerSqm * subjectArea)
     
     // Step 12: Calculate value range
     const valueRange = {
@@ -437,7 +449,7 @@ export class ProfessionalAVM {
       const passesIQR = price >= lowerBound && price <= upperBound
       
       // Z-score filter
-      const zScore = Math.abs((price - mean) / stdDev)
+      const zScore = stdDev === 0 ? 0 : Math.abs((price - mean) / stdDev)
       const passesZScore = zScore <= this.config.zScoreThreshold
       
       if (this.config.outlierMethod === 'iqr') return passesIQR
@@ -691,6 +703,10 @@ export class ProfessionalAVM {
       totalWeight += weight
       weightedSum += (comp.adjustedPrice || comp.pricePerSqm) * weight
     })
+
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+      throw new Error('ProfessionalAVM cannot calculate a weighted average without positive comparable weights')
+    }
     
     return Math.round(weightedSum / totalWeight)
   }

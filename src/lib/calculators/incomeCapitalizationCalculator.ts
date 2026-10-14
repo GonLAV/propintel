@@ -60,6 +60,32 @@ export class IncomeCapitalizationCalculator {
     incomeParams: IncomeParams,
     capRateParams: CapRateParams
   ): IncomeCapitalizationResult {
+    if (!Number.isFinite(incomeParams.grossAnnualIncome) || incomeParams.grossAnnualIncome < 0) {
+      throw new Error('IncomeCapitalizationCalculator requires non-negative gross annual income')
+    }
+
+    if (!Number.isFinite(incomeParams.vacancyRate) || incomeParams.vacancyRate < 0 || incomeParams.vacancyRate > 100) {
+      throw new Error('IncomeCapitalizationCalculator requires vacancy rate between 0 and 100')
+    }
+
+    const expenses = [
+      incomeParams.operatingExpenses,
+      incomeParams.propertyTax,
+      incomeParams.insurance,
+      incomeParams.maintenance,
+      incomeParams.management,
+      incomeParams.utilities,
+      incomeParams.otherExpenses
+    ]
+
+    if (expenses.some(value => !Number.isFinite(value) || value < 0)) {
+      throw new Error('IncomeCapitalizationCalculator requires non-negative expenses')
+    }
+
+    if (!Number.isFinite(capRateParams.finalCapRate) || capRateParams.finalCapRate <= 0) {
+      throw new Error('IncomeCapitalizationCalculator requires a positive final cap rate')
+    }
+
     const grossIncome = incomeParams.grossAnnualIncome
     
     const vacancyLoss = (grossIncome * incomeParams.vacancyRate) / 100
