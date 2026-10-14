@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createLogger } from '@/lib/logger'
+import { generateInitialComparables, generateValuationInsights } from '@/services/aiService'
 
 const log = createLogger('AIValuation')
 
@@ -38,68 +39,12 @@ export function AIValuation({ property, onUpdateValuation }: AIValuationProps) {
   const handleAIValuation = async () => {
     setIsAnalyzing(true)
     try {
-      const prompt = `You are a professional real estate appraiser. Generate realistic comparable properties for this property:
-
-Address: ${property.address.street}, ${property.address.neighborhood}, ${property.address.city}
-Type: ${property.type}
-Built Area: ${property.details.builtArea} sqm
-Rooms: ${property.details.rooms}
-Floor: ${property.details.floor}/${property.details.totalFloors}
-Build Year: ${property.details.buildYear}
-Condition: ${property.details.condition}
-
-Generate exactly 5 comparable properties sold within the last 6 months in the same area. For each comparable:
-1. DO NOT invent street names or claim any address is real. Use the placeholder "לא מאומת (AI)" for the address field.
-2. Set a sale price that makes sense for the area
-3. Calculate appropriate adjustments for location, size, condition, floor, age, and features
-4. Calculate adjusted price and price per sqm
-5. Determine distance from subject property (0.2-2.0 km)
-
-Return ONLY valid JSON with this exact structure, no additional text:
-{
-  "comparables": [
-    {
-      "id": "comp-{unique_id}",
-          "address": "לא מאומת (AI)",
-      "type": "${property.type}",
-      "salePrice": 0,
-      "saleDate": "2024-MM-DD",
-      "builtArea": 0,
-      "rooms": 0,
-      "floor": 0,
-      "distance": 0.0,
-      "adjustments": {
-        "location": 0,
-        "size": 0,
-        "condition": 0,
-        "floor": 0,
-        "age": 0,
-        "features": 0,
-        "total": 0
-      },
-      "adjustedPrice": 0,
-      "pricePerSqm": 0,
-      "selected": true
-    }
-  ]
-}`
-
-      const response = await window.spark.llm(prompt, 'gpt-4o', true)
-      const data = JSON.parse(response)
-      
-      if (!data.comparables || !Array.isArray(data.comparables)) {
-        throw new Error('Invalid response format')
-      }
-
-      const compsWithSelection = data.comparables.map((comp: Comparable) => ({
-        ...comp,
-        selected: true
-      }))
+      const compsWithSelection = await generateInitialComparables(property)
 
       setComparables(compsWithSelection)
-      
+
       await calculateValuation(compsWithSelection)
-      
+
       toast.success('ניתוח AI הושלם בהצלחה')
     } catch (error) {
       log.error('AI Valuation error:', error)
@@ -163,35 +108,18 @@ Return ONLY valid JSON with this exact structure, no additional text:
     setIsAnalyzing(true)
     try {
       const selectedComps = comparables.filter(c => c.selected)
-      
-      const prompt = `As a professional appraiser, analyze these comparable properties and provide insights:
 
-Subject Property:
-- Address: ${property.address.street}, ${property.address.city}
-- Type: ${property.type}
-- Size: ${property.details.builtArea} sqm
-- Rooms: ${property.details.rooms}
-- Condition: ${property.details.condition}
+      const insights = await generateValuationInsights(
+        property,
+        selectedComps,
+        property.valuationData?.estimatedValue,
+        property.valuationData?.confidence
+      )
 
-Selected Comparables:
-${selectedComps.map((c, i) => `${i + 1}. ${c.address} - ${c.salePrice.toLocaleString()} ILS (${c.builtArea} sqm, ${c.rooms} rooms)`).join('\n')}
-
-Estimated Value: ${property.valuationData?.estimatedValue.toLocaleString()} ILS
-Confidence: ${property.valuationData?.confidence}%
-
-Provide a brief professional analysis (2-3 sentences in Hebrew) covering:
-1. Market positioning of this property
-2. Key factors affecting the valuation
-3. Any recommendations or considerations
-
-Return ONLY the Hebrew text, no JSON, no formatting.`
-
-      const insights = await window.spark.llm(prompt, 'gpt-4o')
-      
       if (property.valuationData) {
         onUpdateValuation({
           ...property.valuationData,
-          notes: insights.trim()
+          notes: insights
         })
       }
       
