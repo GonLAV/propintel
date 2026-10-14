@@ -41,6 +41,7 @@ module.exports = {
     idleTimeoutMs: num('PG_IDLE_TIMEOUT_MS', 30000),
     connectionTimeoutMs: num('PG_CONNECTION_TIMEOUT_MS', 5000),
     ssl: process.env.PG_SSL === 'true',
+    sslCa: process.env.PG_SSL_CA ? process.env.PG_SSL_CA.replace(/\\n/g, '\n') : undefined,
   },
 
   redis: {

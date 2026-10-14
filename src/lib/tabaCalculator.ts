@@ -15,7 +15,15 @@ export interface TabaDerived {
   notes: string[]
 }
 
-export function calculateFromExtraction(ex: TabaExtraction, siteAreaSqm?: number | null): TabaDerived {
+export function calculateFromExtraction(
+  ex: TabaExtraction,
+  siteAreaSqm?: number | null,
+  reviewConfirmed = false,
+): TabaDerived {
+  if (!reviewConfirmed) {
+    throw new Error('Human review of source evidence is required before calculating building rights')
+  }
+
   const site = typeof siteAreaSqm === 'number' && siteAreaSqm > 0 ? siteAreaSqm : null
 
   const allowed = site && ex.building_percent != null

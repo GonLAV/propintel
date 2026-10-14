@@ -1,11 +1,5 @@
-import type { Metadata } from 'next'
-import { AuthForm } from '@/components/auth-form'
-
-export const metadata: Metadata = {
-  title: 'Register',
-  description: 'Create your PropIntel workspace.',
-}
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-  return <AuthForm mode="register" />
+  redirect('/login')
 }

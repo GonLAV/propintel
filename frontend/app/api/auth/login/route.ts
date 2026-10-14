@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { apiError, createRequestContext, jsonResponse, rateLimit, readJSON, sanitizeText } from '@/lib/api-server'
 import { signSession } from '@/lib/auth'
@@ -19,11 +20,25 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data
-  if (email !== 'demo@propintel.com' || password !== 'DemoPass123') {
-    return apiError(context, 'Invalid demo credentials', 401, 'invalid_credentials')
+  const configuredEmail = sanitizeText(process.env.AUTH_OWNER_EMAIL || '').toLowerCase()
+  const configuredPassword = process.env.AUTH_OWNER_PASSWORD || ''
+  const configuredId = sanitizeText(process.env.AUTH_OWNER_ID || '')
+  const configuredName = sanitizeText(process.env.AUTH_OWNER_NAME || 'PropIntel Owner')
+
+  if (!configuredEmail || configuredPassword.length < 12 || !configuredId) {
+    return apiError(context, 'Authentication is not configured', 503, 'auth_not_configured')
   }
 
-  const user = { id: 'usr_demo_owner', email, name: 'Maya Levin', role: 'owner' as const }
+  if (email !== configuredEmail || !secureEqual(password, configuredPassword)) {
+    return apiError(context, 'Invalid credentials', 401, 'invalid_credentials')
+  }
+
+  const user = {
+    id: configuredId,
+    email: configuredEmail,
+    name: configuredName,
+    role: 'owner' as const,
+  }
   const token = await signSession(user)
   const response = jsonResponse(context, { user })
   response.cookies.set(sessionCookieName, token, {
@@ -34,4 +49,10 @@ export async function POST(request: Request) {
     path: '/',
   })
   return response
+}
+
+function secureEqual(actual: string, expected: string) {
+  const actualBuffer = Buffer.from(actual)
+  const expectedBuffer = Buffer.from(expected)
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer)
 }

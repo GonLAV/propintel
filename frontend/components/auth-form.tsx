@@ -22,8 +22,8 @@ type AuthResponse = {
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [email, setEmail] = useState(mode === 'login' ? 'demo@propintel.com' : '')
-  const [password, setPassword] = useState(mode === 'login' ? 'DemoPass123' : '')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -42,9 +42,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return
     }
 
-    localStorage.setItem('propintel.user', JSON.stringify(result.data.user))
     const nextPath = new URLSearchParams(window.location.search).get('next')
-    router.push(nextPath?.startsWith('/') ? nextPath : '/dashboard')
+    router.push(getSafeInternalPath(nextPath))
   }
 
   return (
@@ -60,7 +59,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan">{isRegister ? 'Create workspace' : 'Welcome back'}</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{isRegister ? 'Launch your premium valuation room.' : 'Sign in to your command center.'}</h1>
-            <p className="mt-3 text-sm leading-6 text-white/56">{isRegister ? 'Set up a secure JWT session and start with mock data until the production API is connected.' : 'Use demo@propintel.com and DemoPass123 to explore instantly.'}</p>
+            <p className="mt-3 text-sm leading-6 text-white/56">{isRegister ? 'Workspace accounts are provisioned by an administrator.' : 'Sign in with the owner account configured by your administrator.'}</p>
           </div>
 
           <form className="mt-7 space-y-4" onSubmit={submit}>
@@ -100,10 +99,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           </form>
 
           <div className="mt-6 text-center text-sm text-white/50">
-            {isRegister ? 'Already have an account?' : 'New to PropIntel?'}{' '}
-            <a className="font-semibold text-white hover:text-cyan" href={isRegister ? '/login' : '/register'}>
-              {isRegister ? 'Sign in' : 'Create one'}
-            </a>
+            Accounts and roles are managed by the deployment administrator.
           </div>
         </Card>
 
@@ -114,4 +110,19 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       </motion.div>
     </main>
   )
+}
+
+function getSafeInternalPath(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+    return '/dashboard'
+  }
+
+  try {
+    const parsed = new URL(value, window.location.origin)
+    return parsed.origin === window.location.origin
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : '/dashboard'
+  } catch {
+    return '/dashboard'
+  }
 }

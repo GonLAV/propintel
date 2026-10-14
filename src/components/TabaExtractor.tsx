@@ -32,6 +32,7 @@ export function TabaExtractor() {
   const [derived, setDerived] = useState<TabaDerived | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [siteArea, setSiteArea] = useState<number | ''>('')
+  const [reviewConfirmed, setReviewConfirmed] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -68,6 +69,8 @@ export function TabaExtractor() {
     }
     setIsRunning(true)
     setResult(null)
+    setDerived(null)
+    setReviewConfirmed(false)
     try {
       const r = await fetch('/' + selected.extractPath, { cache: 'no-store' })
       if (!r.ok) throw new Error('נכשל בקריאת JSON החילוץ לקובץ')
@@ -85,7 +88,10 @@ export function TabaExtractor() {
     }
   }
   const handleReport = () => {
-    if (!result) return
+    if (!result || !reviewConfirmed) {
+      toast.error('יש לאשר בדיקה אנושית של הציטוטים לפני הפקת דוח')
+      return
+    }
     const item = idx?.items.find(i => i.id === selectedId)
     generateTabaReportPDF({
       extraction: result,
@@ -113,8 +119,12 @@ export function TabaExtractor() {
       toast.error('אין תוצאת חילוץ')
       return
     }
+    if (!reviewConfirmed) {
+      toast.error('יש לאשר בדיקה אנושית של הציטוטים לפני החישוב')
+      return
+    }
     const v = typeof siteArea === 'number' ? siteArea : NaN
-    const out = calculateFromExtraction(result, Number.isFinite(v) ? v : null)
+    const out = calculateFromExtraction(result, Number.isFinite(v) ? v : null, true)
     setDerived(out)
   }
 
@@ -133,7 +143,16 @@ export function TabaExtractor() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">בחר מסמך</label>
-            <select className="w-full h-9 rounded-md border bg-background px-3 text-sm" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <select
+              className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+              value={selectedId}
+              onChange={(e) => {
+                setSelectedId(e.target.value)
+                setResult(null)
+                setDerived(null)
+                setReviewConfirmed(false)
+              }}
+            >
               <option value="">— בחר —</option>
               {filtered.map((it) => (
                 <option key={it.id} value={it.id}>{it.planKey ? `[${it.planKey}] ` : ''}{it.fileName}</option>
@@ -146,7 +165,7 @@ export function TabaExtractor() {
           {result && (
             <Button onClick={saveJSON} variant="outline">ייצא JSON</Button>
           )}
-          <button className="btn" onClick={handleReport} disabled={!result}>
+          <button className="btn" onClick={handleReport} disabled={!result || !reviewConfirmed}>
             הפק דוח PDF
           </button>
         </div>
@@ -182,6 +201,25 @@ export function TabaExtractor() {
 
       <Card className="p-4">
         <div className="font-semibold mb-3">מחשבוני שמאות מעל ה-JSON</div>
+        {result && (
+          <div className="mb-4 space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+            <div>
+              אימות מקור אוטומטי: {result.source_verified ? 'עבר' : 'נמצאו שדות שנדחו'}.
+              {result.rejected_fields.length > 0 ? ` נדחו: ${result.rejected_fields.join(', ')}` : ''}
+            </div>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={reviewConfirmed}
+                onChange={(event) => {
+                  setReviewConfirmed(event.target.checked)
+                  if (!event.target.checked) setDerived(null)
+                }}
+              />
+              <span>בדקתי את הערכים מול ציטוטי המקור והמסמך הרשמי.</span>
+            </label>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">שטח מגרש (מ"ר)</label>
@@ -197,7 +235,7 @@ export function TabaExtractor() {
             />
           </div>
           <div>
-            <Button onClick={runCalculator} disabled={!result}>חשב זכויות</Button>
+            <Button onClick={runCalculator} disabled={!result || !reviewConfirmed}>חשב זכויות</Button>
           </div>
         </div>
         <div className="mt-3">

@@ -41,13 +41,11 @@ import { uid } from '@/lib/utils'
 interface ClientPortalProps {
   clients: Client[]
   properties: Property[]
+  authenticatedEmail: string
   onBackToAdmin: () => void
 }
 
-export function ClientPortal({ clients, properties, onBackToAdmin }: ClientPortalProps) {
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loginEmail, setLoginEmail] = useState('')
+export function ClientPortal({ clients, properties, authenticatedEmail, onBackToAdmin }: ClientPortalProps) {
   const [reports, _setReports] = useKV<Report[]>('client-portal-reports', [])
   const [updateRequests, setUpdateRequests] = useKV<UpdateRequest[]>('client-portal-requests', [])
   const [activities, setActivities] = useKV<ClientActivity[]>('client-portal-activities', [])
@@ -56,26 +54,15 @@ export function ClientPortal({ clients, properties, onBackToAdmin }: ClientPorta
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'property'>('date')
-
-  const handleLogin = () => {
-    const client = clients.find(c => c.email.toLowerCase() === loginEmail.toLowerCase())
-    if (client) {
-      setSelectedClient(client)
-      setIsAuthenticated(true)
-      logActivity(client.id, 'login', 'התחברות לפורטל לקוח')
-      toast.success(`ברוך הבא, ${client.name}!`)
-    } else {
-      toast.error('אימייל לא נמצא במערכת')
-    }
-  }
+  const selectedClient = clients.find(
+    (client) => client.email.toLowerCase() === authenticatedEmail.trim().toLowerCase(),
+  ) || null
 
   const handleLogout = () => {
     if (selectedClient) {
       logActivity(selectedClient.id, 'login', 'התנתקות מפורטל לקוח')
     }
-    setIsAuthenticated(false)
-    setSelectedClient(null)
-    setLoginEmail('')
+    onBackToAdmin()
   }
 
   const logActivity = (clientId: string, type: ClientActivity['type'], description: string, metadata?: Record<string, any>) => {
@@ -112,11 +99,9 @@ export function ClientPortal({ clients, properties, onBackToAdmin }: ClientPorta
     }
   })
 
-  if (!isAuthenticated) {
-    return <LoginScreen email={loginEmail} setEmail={setLoginEmail} onLogin={handleLogin} onBack={onBackToAdmin} />
+  if (!selectedClient) {
+    return <PortalUnavailable authenticatedEmail={authenticatedEmail} onBack={onBackToAdmin} />
   }
-
-  if (!selectedClient) return null
 
   return (
     <div className="min-h-screen bg-background">
@@ -305,10 +290,8 @@ export function ClientPortal({ clients, properties, onBackToAdmin }: ClientPorta
   )
 }
 
-function LoginScreen({ email, setEmail, onLogin, onBack }: { 
-  email: string
-  setEmail: (v: string) => void
-  onLogin: () => void
+function PortalUnavailable({ authenticatedEmail, onBack }: {
+  authenticatedEmail: string
   onBack: () => void
 }) {
   return (
@@ -328,33 +311,19 @@ function LoginScreen({ email, setEmail, onLogin, onBack }: {
             <div>
               <CardTitle className="text-3xl font-bold">פורטל לקוח</CardTitle>
               <CardDescription className="text-base mt-2">
-                הזן את כתובת האימייל שלך כדי להיכנס
+                הגישה לפורטל מבוססת על זהות Spark מאומתת
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">אימייל</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="example@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onLogin()}
-                className="text-lg h-12"
-              />
+            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
+              לא נמצא לקוח המקושר לחשבון המאומת
+              {authenticatedEmail ? ` (${authenticatedEmail})` : ''}.
+              יש לקשר את כתובת החשבון לרשומת לקוח לפני פתיחת הפורטל.
             </div>
             <Button 
-              onClick={onLogin} 
-              className="w-full h-12 text-lg bg-linear-to-r from-primary to-accent hover:opacity-90 glow-primary"
-              disabled={!email}
-            >
-              כניסה לפורטל
-            </Button>
-            <Button 
               onClick={onBack} 
-              variant="ghost" 
+              variant="outline"
               className="w-full"
             >
               חזרה לממשק מנהל

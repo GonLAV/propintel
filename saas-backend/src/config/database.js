@@ -9,7 +9,12 @@ const pool = new Pool({
   max: config.database.poolMax,
   idleTimeoutMillis: config.database.idleTimeoutMs,
   connectionTimeoutMillis: config.database.connectionTimeoutMs,
-  ssl: config.database.ssl ? { rejectUnauthorized: false } : false,
+  ssl: config.database.ssl
+    ? {
+      rejectUnauthorized: true,
+      ...(config.database.sslCa ? { ca: config.database.sslCa } : {}),
+    }
+    : false,
 });
 
 pool.on('error', (err) => logger.error({ err }, 'PG pool error'));

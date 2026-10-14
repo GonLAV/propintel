@@ -46,7 +46,9 @@ export function generateTabaReportPDF(params: {
     ['זכויות עיקריות (מ״ר)', extraction.main_building_rights_sqm !== null ? String(extraction.main_building_rights_sqm) : 'null'],
     ['הגבלות מיוחדות', (extraction.special_restrictions || []).join(', ') || '[]'],
     ['דרישות חניה', extraction.parking_requirements ?? 'null'],
-    ['Confidence', String(extraction.confidence)]
+    ['Confidence', String(extraction.confidence)],
+    ['אימות ציטוטי מקור', extraction.source_verified ? 'עבר' : 'נדרשת בדיקה'],
+    ['שדות שנדחו', extraction.rejected_fields.join(', ') || 'אין']
   ]
 
   for (const [k, v] of rows1) {
@@ -91,7 +93,7 @@ export function generateTabaReportPDF(params: {
 
   y += 10
   doc.setFontSize(9)
-  addLine('שקיפות: החילוץ מבוסס טקסט בלבד, ללא פרשנות. נתונים שאינם מפורשים מוחזרים כ-null. יש להצליב עם מקור התכנית והמסמכים.')
+  addLine('שקיפות: כל ערך חייב ציטוט מקור מדויק. הדוח הופק רק לאחר אישור בדיקה אנושית מול המסמך הרשמי.')
 
   doc.save(`taba_report_${meta.planKey || meta.fileName}.pdf`)
 }

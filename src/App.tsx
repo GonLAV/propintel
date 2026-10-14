@@ -87,7 +87,13 @@ const AIPhotoAnalysis = lazy(() => import('@/components/AIPhotoAnalysis').then(m
 const ValuationAssistant = lazy(() => import('@/components/ValuationAssistant').then(m => ({ default: m.ValuationAssistant })))
 const AIComparableReportStudio = lazy(() => import('@/components/AIComparableReportStudioLive').then(m => ({ default: m.AIComparableReportStudioLive })))
 
-function App() {
+interface AppProps {
+  currentUser: {
+    email?: string | null
+  }
+}
+
+function App({ currentUser }: AppProps) {
   const [properties, setProperties] = useKV<Property[]>('properties', generateMockProperties())
   const [clients, setClients] = useKV<Client[]>('clients', generateMockClients())
   const { activeView, navigate } = useNavigation()
@@ -168,6 +174,7 @@ function App() {
           <ClientPortal 
             clients={safeClients} 
             properties={safeProperties}
+            authenticatedEmail={currentUser.email || ''}
             onBackToAdmin={() => {
               setIsClientPortalMode(false)
               window.history.replaceState({}, '', window.location.pathname)

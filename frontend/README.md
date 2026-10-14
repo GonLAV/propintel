@@ -74,16 +74,18 @@ npm run dev
 
 Open `http://127.0.0.1:3000`.
 
-## Demo Auth
+## Owner Auth
 
-The login route accepts:
+Public registration is disabled. Configure the administrator-controlled owner account in `.env.local`:
 
 ```text
-email: demo@propintel.com
-password: DemoPass123
+AUTH_OWNER_ID=owner_01
+AUTH_OWNER_EMAIL=owner@example.com
+AUTH_OWNER_PASSWORD=<unique password with at least 12 characters>
+AUTH_OWNER_NAME=PropIntel Owner
 ```
 
-Registration creates a signed mock JWT session. Replace the route handlers with the SaaS backend auth endpoints when the production API is selected as canonical.
+The login route issues an owner session only when the submitted credentials match this server-side configuration. Dashboard middleware revalidates the session principal against the current configured account.
 
 ## Production Notes
 

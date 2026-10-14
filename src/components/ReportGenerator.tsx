@@ -26,6 +26,24 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('ReportGenerator')
 
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function safeFileSegment(value: string) {
+  return [...value.normalize('NFKC')]
+    .map((character) => character.charCodeAt(0) < 32 ? '-' : character)
+    .join('')
+    .replace(/[<>:"/\\|?*]/g, '-')
+    .replace(/\s+/g, '-')
+    .slice(0, 80)
+}
+
 interface ReportGeneratorProps {
   property: Property
   client?: Client
@@ -141,11 +159,11 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
       setIsGenerating(false)
       toast.success(`דוח ${reportFormat.toUpperCase()} נוצר בהצלחה!`)
       
-      const blob = new Blob([generateReportHTML(aiContent)], { type: 'text/html' })
+      const blob = new Blob([generateReportHTML(aiContent)], { type: 'text/html;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `דוח-שמאות-${property.address.street.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.html`
+      a.download = `דוח-שמאות-${safeFileSegment(property.address.street)}-${new Date().toISOString().split('T')[0]}.html`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -161,7 +179,8 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
 <html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8">
-  <title>דוח שמאות - ${property.address.street}</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>דוח שמאות - ${escapeHtml(property.address.street)}</title>
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -198,26 +217,26 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
   
   <div class="header">
     <h1>דוח שמאות נדל"ן</h1>
-    <p><strong>${property.address.street}</strong></p>
-    <p>${property.address.neighborhood}, ${property.address.city}</p>
-    <p>תאריך: ${new Date().toLocaleDateString('he-IL')}</p>
+    <p><strong>${escapeHtml(property.address.street)}</strong></p>
+    <p>${escapeHtml(property.address.neighborhood)}, ${escapeHtml(property.address.city)}</p>
+    <p>תאריך: ${escapeHtml(new Date().toLocaleDateString('he-IL'))}</p>
   </div>
 
   ${enabledSections.find(s => s.id === 'executive-summary')?.enabled ? `
   <h2>תקציר מנהלים</h2>
-  <p>${aiContent?.executiveSummary || 'דוח שמאות מקיף עבור נכס מגורים בשטח ' + property.details.builtArea + ' מ״ר.'}</p>
+  <p>${escapeHtml(aiContent?.executiveSummary || 'דוח שמאות מקיף עבור נכס מגורים בשטח ' + property.details.builtArea + ' מ״ר.')}</p>
   ` : ''}
 
   <h2>פרטי הנכס</h2>
   <div class="info-grid">
-    <div class="info-item"><span class="info-label">כתובת:</span> ${property.address.street}, ${property.address.city}</div>
-    <div class="info-item"><span class="info-label">סוג נכס:</span> ${property.type}</div>
-    <div class="info-item"><span class="info-label">שטח בנוי:</span> ${property.details.builtArea} מ״ר</div>
-    <div class="info-item"><span class="info-label">חדרים:</span> ${property.details.rooms}</div>
-    <div class="info-item"><span class="info-label">קומה:</span> ${property.details.floor} מתוך ${property.details.totalFloors}</div>
-    <div class="info-item"><span class="info-label">שנת בנייה:</span> ${property.details.buildYear}</div>
-    <div class="info-item"><span class="info-label">מצב:</span> ${property.details.condition}</div>
-    <div class="info-item"><span class="info-label">חניות:</span> ${property.details.parking}</div>
+    <div class="info-item"><span class="info-label">כתובת:</span> ${escapeHtml(property.address.street)}, ${escapeHtml(property.address.city)}</div>
+    <div class="info-item"><span class="info-label">סוג נכס:</span> ${escapeHtml(property.type)}</div>
+    <div class="info-item"><span class="info-label">שטח בנוי:</span> ${escapeHtml(property.details.builtArea)} מ״ר</div>
+    <div class="info-item"><span class="info-label">חדרים:</span> ${escapeHtml(property.details.rooms)}</div>
+    <div class="info-item"><span class="info-label">קומה:</span> ${escapeHtml(property.details.floor)} מתוך ${escapeHtml(property.details.totalFloors)}</div>
+    <div class="info-item"><span class="info-label">שנת בנייה:</span> ${escapeHtml(property.details.buildYear)}</div>
+    <div class="info-item"><span class="info-label">מצב:</span> ${escapeHtml(property.details.condition)}</div>
+    <div class="info-item"><span class="info-label">חניות:</span> ${escapeHtml(property.details.parking)}</div>
   </div>
 
   ${property.valuationData ? `
@@ -229,18 +248,18 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
     <div class="info-item"><span class="info-label">טווח שווי:</span> ₪${property.valuationData.valueRange.min.toLocaleString()} - ₪${property.valuationData.valueRange.max.toLocaleString()}</div>
     <div class="info-item"><span class="info-label">ביטחון:</span> ${property.valuationData.confidence}%</div>
     <div class="info-item"><span class="info-label">מחיר למ״ר:</span> ₪${Math.round(property.valuationData.estimatedValue / property.details.builtArea).toLocaleString()}</div>
-    <div class="info-item"><span class="info-label">שיטה:</span> ${property.valuationData.method}</div>
+    <div class="info-item"><span class="info-label">שיטה:</span> ${escapeHtml(property.valuationData.method)}</div>
   </div>
   ` : ''}
 
   ${enabledSections.find(s => s.id === 'location-analysis')?.enabled ? `
   <h2>ניתוח מיקום</h2>
-  <p>${aiContent?.locationAnalysis || 'הנכס ממוקם באזור מבוקש עם נגישות מעולה לשירותים ותחבורה ציבורית.'}</p>
+  <p>${escapeHtml(aiContent?.locationAnalysis || 'הנכס ממוקם באזור מבוקש עם נגישות מעולה לשירותים ותחבורה ציבורית.')}</p>
   ` : ''}
 
   ${enabledSections.find(s => s.id === 'market-analysis')?.enabled ? `
   <h2>ניתוח שוק</h2>
-  <p>${aiContent?.marketAnalysis || 'השוק באזור מציג יציבות עם מגמת עלייה קלה במחירים.'}</p>
+  <p>${escapeHtml(aiContent?.marketAnalysis || 'השוק באזור מציג יציבות עם מגמת עלייה קלה במחירים.')}</p>
   ` : ''}
 
   ${enabledSections.find(s => s.id === 'comparables')?.enabled && selectedComps.length > 0 ? `
@@ -259,7 +278,7 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
     <tbody>
       ${selectedComps.map(comp => `
         <tr>
-          <td>${comp.address}</td>
+          <td>${escapeHtml(comp.address)}</td>
           <td>₪${(comp.salePrice / 1000000).toFixed(2)}M</td>
           <td>${comp.builtArea} מ״ר</td>
           <td>${comp.rooms}</td>
@@ -273,28 +292,24 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
 
   ${customNotes ? `
   <h2>הערות והמלצות</h2>
-  <p>${customNotes}</p>
+  <p>${escapeHtml(customNotes)}</p>
   ` : ''}
 
   ${enabledSections.find(s => s.id === 'legal-disclaimer')?.enabled ? `
   <h2>הגבלת אחריות</h2>
   <p style="font-size: 12px;">
-    דוח זה הוכן עבור ${client?.name || 'הלקוח'} בלבד ואינו מיועד לשימוש צד שלישי. 
-    השמאות מבוססת על מידע שסופק למשרד וביקור בנכס. 
-    השמאות תקפה ליום ${new Date().toLocaleDateString('he-IL')} בלבד.
+    דוח זה הוכן עבור ${escapeHtml(client?.name || 'הלקוח')} בלבד ואינו מיועד לשימוש צד שלישי.
+    השמאות מבוססת על מידע שסופק למשרד וביקור בנכס.
+    השמאות תקפה ליום ${escapeHtml(new Date().toLocaleDateString('he-IL'))} בלבד.
   </p>
   ` : ''}
 
   <div class="footer">
-    <p><strong>${appraiserName}</strong></p>
-    ${appraiserLicense ? `<p>רישיון שמאי: ${appraiserLicense}</p>` : ''}
+    <p><strong>${escapeHtml(appraiserName)}</strong></p>
+    ${appraiserLicense ? `<p>רישיון שמאי: ${escapeHtml(appraiserLicense)}</p>` : ''}
     <p>נוצר באמצעות AppraisalPro - מערכת שמאות מתקדמת</p>
-    <p>© ${new Date().getFullYear()} כל הזכויות שמורות</p>
+    <p>© ${escapeHtml(new Date().getFullYear())} כל הזכויות שמורות</p>
   </div>
-
-  <button class="no-print" onclick="window.print()" style="position: fixed; bottom: 20px; left: 20px; padding: 12px 24px; background: #4299e1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-    הדפס דוח
-  </button>
 </body>
 </html>`
   }

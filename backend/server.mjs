@@ -17,6 +17,7 @@ const MAX_COMPARABLES_POOL = Number(process.env.MAX_COMPARABLES_POOL || 2000)
 const MAX_REPORT_FACTS = Number(process.env.MAX_REPORT_FACTS || 100)
 const MEMORY_RETENTION_LIMIT = Number(process.env.MEMORY_RETENTION_LIMIT || 500)
 const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:5001,http://localhost:3000')
+const API_PRINCIPALS = parseApiPrincipals(process.env.API_AUTH_PRINCIPALS || '')
 
 app.disable('x-powered-by')
 app.use(requestContext)
@@ -64,12 +65,15 @@ app.get('/api/v1/health/db', asyncHandler(async (_req, res) => {
   return res.json(health)
 }))
 
+app.use('/api/v1', authenticateApi)
+
 // --- Ingestion pipeline -----------------------------------------------------
-app.post('/api/v1/ingestion/run', asyncHandler(async (req, res) => {
+app.post('/api/v1/ingestion/run', requireRoles('admin', 'appraiser'), asyncHandler(async (req, res) => {
   const validation = validateIngestionRequest(req.body)
   if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
-  const { transactions, listings, createdBy } = validation.value
+  const { transactions, listings } = validation.value
+  const createdBy = req.auth.subject
 
   const runId = `ing_${crypto.randomUUID()}`
   const started = Date.now()
@@ -108,7 +112,7 @@ app.post('/api/v1/ingestion/run', asyncHandler(async (req, res) => {
   return res.json(payload)
 }))
 
-app.get('/api/v1/ingestion/runs', asyncHandler(async (_req, res) => {
+app.get('/api/v1/ingestion/runs', requireRoles('admin', 'appraiser'), asyncHandler(async (_req, res) => {
   const runs = (await listPersistedIngestionRuns(100))
     .map((x) => ({
       runId: x.runId,
@@ -121,7 +125,7 @@ app.get('/api/v1/ingestion/runs', asyncHandler(async (_req, res) => {
   return res.json({ count: runs.length, runs })
 }))
 
-app.get('/api/v1/ingestion/:runId', asyncHandler(async (req, res) => {
+app.get('/api/v1/ingestion/:runId', requireRoles('admin', 'appraiser'), asyncHandler(async (req, res) => {
   if (!isSafeToken(req.params.runId, 'ing_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
   const run = await getPersistedIngestionRun(req.params.runId)
   if (!run) return sendError(res, 404, 'NOT_FOUND', 'Ingestion run not found')
@@ -129,11 +133,12 @@ app.get('/api/v1/ingestion/:runId', asyncHandler(async (req, res) => {
 }))
 
 // --- Comparable search ------------------------------------------------------
-app.post('/api/v1/comparables/search', (req, res) => {
+app.post('/api/v1/comparables/search', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   const validation = validateComparableSearchRequest(req.body)
   if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
-  const { subject, comparablesPool, topK, requestedBy } = validation.value
+  const { subject, comparablesPool, topK } = validation.value
+  const requestedBy = req.auth.subject
 
   const runId = `run_${crypto.randomUUID()}`
   const started = Date.now()
@@ -188,14 +193,15 @@ app.post('/api/v1/comparables/search', (req, res) => {
   })
 })
 
-app.post('/api/v1/comparables/:runId/adjustments/override', (req, res) => {
+app.post('/api/v1/comparables/:runId/adjustments/override', requireRoles('admin', 'appraiser'), (req, res) => {
   const { runId } = req.params
   if (!isSafeToken(runId, 'run_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
 
   const validation = validateAdjustmentOverrideRequest(req.body)
   if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
-  const { candidateId, patch, appraiserId, reason } = validation.value
+  const { candidateId, patch, reason } = validation.value
+  const appraiserId = req.auth.subject
   const run = comparableRuns.get(runId)
 
   if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
@@ -249,7 +255,7 @@ app.post('/api/v1/comparables/:runId/adjustments/override', (req, res) => {
 })
 
 // --- Valuation --------------------------------------------------------------
-app.post('/api/v1/valuations/estimate', (req, res) => {
+app.post('/api/v1/valuations/estimate', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   const { runId, strategy = 'weighted-mean' } = req.body || {}
   if (!isSafeToken(runId, 'run_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
   if (!valuationStrategies.has(strategy)) {
@@ -265,7 +271,7 @@ app.post('/api/v1/valuations/estimate', (req, res) => {
 })
 
 // Backward compatibility endpoint
-app.post('/api/valuations', (req, res) => {
+app.post('/api/valuations', authenticateApi, requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   const { propertyId, method } = req.body || {}
   if (!propertyId || !method) {
     return sendError(res, 400, 'BAD_REQUEST', 'propertyId and method required')
@@ -282,7 +288,7 @@ app.post('/api/valuations', (req, res) => {
 })
 
 // --- Report generation ------------------------------------------------------
-app.post('/api/v1/reports/generate', (req, res) => {
+app.post('/api/v1/reports/generate', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   const validation = validateReportGenerateRequest(req.body)
   if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
@@ -320,7 +326,7 @@ app.post('/api/v1/reports/generate', (req, res) => {
   return res.json(payload)
 })
 
-app.post('/api/v1/reports/:reportId/validate', (req, res) => {
+app.post('/api/v1/reports/:reportId/validate', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   if (!isSafeToken(req.params.reportId, 'report_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid reportId')
   const report = reports.get(req.params.reportId)
   if (!report) return sendError(res, 404, 'NOT_FOUND', 'Report not found')
@@ -329,14 +335,14 @@ app.post('/api/v1/reports/:reportId/validate', (req, res) => {
   return res.json({ reportId: req.params.reportId, status, issues: report.validations })
 })
 
-app.post('/api/v1/reports/:reportId/finalize', (req, res) => {
+app.post('/api/v1/reports/:reportId/finalize', requireRoles('admin', 'appraiser'), (req, res) => {
   if (!isSafeToken(req.params.reportId, 'report_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid reportId')
   const report = reports.get(req.params.reportId)
   if (!report) return sendError(res, 404, 'NOT_FOUND', 'Report not found')
-  const appraiserId = sanitizeToken(req.body?.appraiserId, 120)
+  const appraiserId = req.auth.subject
   const approvalComment = sanitizeString(req.body?.approvalComment, 1000)
-  if (!appraiserId || !approvalComment) {
-    return sendError(res, 400, 'BAD_REQUEST', 'appraiserId and approvalComment are required')
+  if (!approvalComment) {
+    return sendError(res, 400, 'BAD_REQUEST', 'approvalComment is required')
   }
 
   if (report.validations.some((x) => x.severity === 'error')) {
@@ -356,7 +362,7 @@ app.post('/api/v1/reports/:reportId/finalize', (req, res) => {
   return res.json(finalized)
 })
 
-app.get('/api/v1/audit/events', (_req, res) => {
+app.get('/api/v1/audit/events', requireRoles('admin'), (_req, res) => {
   return res.json({ count: auditEvents.length, events: auditEvents.slice(-500).reverse() })
 })
 
@@ -698,6 +704,83 @@ function corsOrigin(origin, callback) {
   return callback(new Error(`Origin ${origin} not allowed`))
 }
 
+function parseApiPrincipals(value) {
+  if (!value.trim()) return []
+
+  let parsed
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new Error('API_AUTH_PRINCIPALS must be valid JSON')
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error('API_AUTH_PRINCIPALS must contain at least one principal')
+  }
+
+  return parsed.map((entry, index) => {
+    if (!isPlainObject(entry)) {
+      throw new Error(`API_AUTH_PRINCIPALS[${index}] must be an object`)
+    }
+
+    const token = sanitizeString(entry.token, 4096)
+    const subject = sanitizeToken(entry.subject, 120)
+    const roles = Array.isArray(entry.roles)
+      ? entry.roles.map((role) => sanitizeToken(role, 40)).filter(Boolean)
+      : []
+
+    if (token.length < 32 || !subject || roles.length === 0) {
+      throw new Error(`API_AUTH_PRINCIPALS[${index}] requires a 32+ character token, subject, and roles`)
+    }
+
+    return {
+      token,
+      subject,
+      roles: new Set(roles),
+    }
+  })
+}
+
+function authenticateApi(req, res, next) {
+  if (API_PRINCIPALS.length === 0) {
+    return sendError(res, 503, 'AUTH_NOT_CONFIGURED', 'API authentication is not configured')
+  }
+
+  const authorization = req.headers.authorization
+  if (typeof authorization !== 'string' || !authorization.startsWith('Bearer ')) {
+    res.setHeader('www-authenticate', 'Bearer')
+    return sendError(res, 401, 'UNAUTHORIZED', 'Bearer authentication is required')
+  }
+
+  const token = authorization.slice('Bearer '.length).trim()
+  const principal = API_PRINCIPALS.find((candidate) => secureTokenEqual(token, candidate.token))
+  if (!principal) {
+    res.setHeader('www-authenticate', 'Bearer')
+    return sendError(res, 401, 'UNAUTHORIZED', 'Invalid bearer token')
+  }
+
+  req.auth = {
+    subject: principal.subject,
+    roles: principal.roles,
+  }
+  return next()
+}
+
+function requireRoles(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.auth || !allowedRoles.some((role) => req.auth.roles.has(role))) {
+      return sendError(res, 403, 'FORBIDDEN', 'Insufficient permissions')
+    }
+    return next()
+  }
+}
+
+function secureTokenEqual(actual, expected) {
+  const actualBuffer = Buffer.from(actual)
+  const expectedBuffer = Buffer.from(expected)
+  return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer)
+}
+
 function asyncHandler(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 }
@@ -760,7 +843,6 @@ function validateIngestionRequest(body) {
     value: {
       transactions,
       listings,
-      createdBy: sanitizeToken(body.createdBy, 120) || 'system',
     },
   }
 }
@@ -783,7 +865,6 @@ function validateComparableSearchRequest(body) {
       subject,
       comparablesPool,
       topK,
-      requestedBy: sanitizeToken(body.requestedBy, 120) || 'system',
     },
   }
 }
@@ -817,10 +898,9 @@ function sanitizePropertyLike(input) {
 function validateAdjustmentOverrideRequest(body) {
   if (!isPlainObject(body)) return { ok: false, error: 'Request body must be an object' }
   const candidateId = sanitizeToken(body.candidateId, 160)
-  const appraiserId = sanitizeToken(body.appraiserId, 120)
   const reason = sanitizeString(body.reason, 1000)
-  if (!candidateId || !appraiserId || !reason) {
-    return { ok: false, error: 'candidateId, appraiserId, and reason are required' }
+  if (!candidateId || !reason) {
+    return { ok: false, error: 'candidateId and reason are required' }
   }
   if (!isPlainObject(body.patch)) return { ok: false, error: 'patch must be an object' }
 
@@ -829,7 +909,7 @@ function validateAdjustmentOverrideRequest(body) {
   for (const key of allowed) {
     if (body.patch[key] !== undefined) patch[key] = clamp(toFiniteNumber(body.patch[key], 0), -0.25, 0.25)
   }
-  return { ok: true, value: { candidateId, appraiserId, reason, patch } }
+  return { ok: true, value: { candidateId, reason, patch } }
 }
 
 function validateReportGenerateRequest(body) {
@@ -873,4 +953,7 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`✓ Backend server running on http://localhost:${PORT}`)
   console.log(`✓ Health check: http://localhost:${PORT}/health`)
+  if (API_PRINCIPALS.length === 0) {
+    console.warn('⚠ API routes are locked because API_AUTH_PRINCIPALS is not configured')
+  }
 })

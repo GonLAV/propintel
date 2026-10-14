@@ -67,6 +67,7 @@ export default function OCRHelper() {
   const [tabaDerived, setTabaDerived] = useState<TabaDerived | null>(null)
   const [tabaSiteArea, setTabaSiteArea] = useState<number | ''>('')
   const [isTabaRunning, setIsTabaRunning] = useState(false)
+  const [isTabaReviewed, setIsTabaReviewed] = useState(false)
 
   type OcrTrainingSample = {
     id: string
@@ -551,17 +552,25 @@ ${result.fullText.slice(0, 18000)}
     setIsTabaRunning(true)
     setTabaExtraction(null)
     setTabaDerived(null)
+    setIsTabaReviewed(false)
     try {
       const out = await extractTabaFromText(result.fullText)
       setTabaExtraction(out)
-      const site = typeof tabaSiteArea === 'number' ? tabaSiteArea : null
-      setTabaDerived(calculateFromExtraction(out, site))
-      toast.success('חילוץ תב"ע הושלם')
+      toast.success('חילוץ תב"ע הושלם; נדרשת בדיקת ציטוטים לפני חישוב')
     } catch (e: any) {
       toast.error(e?.message || 'נכשל חילוץ תב"ע')
     } finally {
       setIsTabaRunning(false)
     }
+  }
+
+  const runTabaCalculation = () => {
+    if (!tabaExtraction || !isTabaReviewed) {
+      toast.error('יש לאשר בדיקה אנושית של ציטוטי המקור')
+      return
+    }
+    const site = typeof tabaSiteArea === 'number' ? tabaSiteArea : null
+    setTabaDerived(calculateFromExtraction(tabaExtraction, site, true))
   }
 
   const saveJSON = () => {
@@ -915,21 +924,46 @@ ${result.fullText.slice(0, 18000)}
                 {isTabaRunning ? 'מחלץ…' : 'חלץ הוראות תב"ע'}
               </Button>
               {tabaExtraction ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const blob = new Blob([JSON.stringify({ tabaExtraction, tabaDerived }, null, 2)], { type: 'application/json' })
-                    const a = document.createElement('a')
-                    a.href = URL.createObjectURL(blob)
-                    a.download = 'taba-extract.json'
-                    a.click()
-                  }}
-                >
-                  ייצא JSON
-                </Button>
+                <>
+                  <Button onClick={runTabaCalculation} disabled={!isTabaReviewed}>
+                    חשב זכויות
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const blob = new Blob([JSON.stringify({ tabaExtraction, tabaDerived }, null, 2)], { type: 'application/json' })
+                      const a = document.createElement('a')
+                      a.href = URL.createObjectURL(blob)
+                      a.download = 'taba-extract.json'
+                      a.click()
+                    }}
+                  >
+                    ייצא JSON
+                  </Button>
+                </>
               ) : null}
             </div>
           </div>
+
+          {tabaExtraction ? (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+              <div>
+                אימות מקור אוטומטי: {tabaExtraction.source_verified ? 'עבר' : 'נמצאו שדות שנדחו'}.
+                {tabaExtraction.rejected_fields.length > 0 ? ` נדחו: ${tabaExtraction.rejected_fields.join(', ')}` : ''}
+              </div>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={isTabaReviewed}
+                  onChange={(event) => {
+                    setIsTabaReviewed(event.target.checked)
+                    if (!event.target.checked) setTabaDerived(null)
+                  }}
+                />
+                <span>בדקתי את הערכים מול ציטוטי המקור והמסמך הרשמי.</span>
+              </label>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>

@@ -10,7 +10,7 @@
  *
  * Creates:
  *   - tenant   "Demo Co"        (slug: demo)
- *   - user     owner@demo.test  (password: DemoPass123!)
+ *   - user     owner@demo.test  (password: SEED_OWNER_PASSWORD)
  *   - 1 sample property
  *   - 8 comparable_sales rows for Tel Aviv apartments
  */
@@ -42,20 +42,24 @@ async function main() {
   }
 
   // Owner user
-  const ownerEmail = 'owner@demo.test';
+  const ownerEmail = process.env.SEED_OWNER_EMAIL || 'owner@demo.test';
   let user = (await query(
     `SELECT id, email FROM users WHERE tenant_id = $1 AND email = $2 AND deleted_at IS NULL`,
     [tenant.id, ownerEmail],
   )).rows[0];
   if (!user) {
-    const passwordHash = await bcrypt.hash('DemoPass123!', config.bcryptRounds);
+    const ownerPassword = process.env.SEED_OWNER_PASSWORD || '';
+    if (ownerPassword.length < 12) {
+      throw new Error('SEED_OWNER_PASSWORD must be configured with at least 12 characters');
+    }
+    const passwordHash = await bcrypt.hash(ownerPassword, config.bcryptRounds);
     const r = await query(
       `INSERT INTO users (tenant_id, email, password_hash, full_name, role)
        VALUES ($1, $2, $3, $4, 'owner') RETURNING id, email`,
       [tenant.id, ownerEmail, passwordHash, 'Demo Owner'],
     );
     user = r.rows[0];
-    console.log(`  ✓ created owner ${user.email} (password: DemoPass123!)`);
+    console.log(`  ✓ created owner ${user.email}`);
   } else {
     console.log(`  • owner ${user.email} already exists`);
   }
@@ -110,9 +114,8 @@ async function main() {
     console.log(`  • tenant already has ${compsCount} comparable sales — skipping`);
   }
 
-  console.log('\nDone. Login with:');
-  console.log('  email:    owner@demo.test');
-  console.log('  password: DemoPass123!');
+  console.log('\nDone. Login with the configured seed credentials:');
+  console.log(`  email:    ${ownerEmail}`);
   console.log(`  tenant:   ${slug}`);
 }
 
