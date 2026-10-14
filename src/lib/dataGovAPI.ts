@@ -59,8 +59,9 @@ export async function fetchTransactionsFromDataGov(params: {
   street?: string
   limit?: number
   offset?: number
+  signal?: AbortSignal
 }): Promise<RawTransaction[]> {
-  const { city, street, limit = 100, offset = 0 } = params
+  const { city, street, limit = 100, offset = 0, signal } = params
 
   try {
     const filters: Record<string, string> = {
@@ -84,6 +85,7 @@ export async function fetchTransactionsFromDataGov(params: {
       headers: {
         'Accept': 'application/json',
       },
+      signal,
     })
 
     if (!response.ok) {
