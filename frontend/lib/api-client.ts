@@ -25,3 +25,23 @@ export async function postJSON<T>(url: string, body: unknown): Promise<ApiResult
     return { ok: false, error: error instanceof Error ? error.message : 'Network error' }
   }
 }
+
+export async function logoutSession(fetcher: typeof fetch = fetch): Promise<ApiResult<{ ok: true }>> {
+  try {
+    const response = await fetcher('/api/auth/logout', { method: 'POST' })
+    const payload = await response.json().catch(() => null)
+    const requestId = response.headers.get('x-request-id')
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: payload?.error?.message || response.statusText || 'Sign out failed',
+        requestId: payload?.error?.requestId || requestId,
+      }
+    }
+
+    return { ok: true, data: payload?.ok === true ? payload : { ok: true }, requestId }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Network error' }
+  }
+}

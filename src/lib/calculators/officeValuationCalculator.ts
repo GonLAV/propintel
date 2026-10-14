@@ -173,11 +173,9 @@ export class OfficeValuationCalculator {
     const valuePerSqm = weightedAverage
     const baseValue = valuePerSqm * property.totalArea
     
-    const classMultiplier = this.OFFICE_CLASS_MULTIPLIERS[property.officeClass]
-    const conditionMultiplier = this.CONDITION_MULTIPLIERS[property.condition]
     const floorAdjustment = this.getFloorAdjustment(property.floor, property.totalFloors)
     
-    const adjustedValue = baseValue * classMultiplier * conditionMultiplier * floorAdjustment
+    const adjustedValue = baseValue * floorAdjustment
     
     const confidence = this.calculateConfidence(validComparables, property)
     
@@ -189,13 +187,13 @@ export class OfficeValuationCalculator {
     const adjustmentSummary = [
       {
         category: 'דירוג משרד (Class)',
-        adjustment: (classMultiplier - 1) * 100,
-        reasoning: `משרד בדירוג ${property.officeClass}`
+        adjustment: 0,
+        reasoning: `דירוג ${property.officeClass} כבר נכלל בהתאמות היחסיות לעסקאות ההשוואה`
       },
       {
         category: 'מצב פיזי',
-        adjustment: (conditionMultiplier - 1) * 100,
-        reasoning: `מצב ${this.getConditionHebrew(property.condition)}`
+        adjustment: 0,
+        reasoning: `מצב ${this.getConditionHebrew(property.condition)} כבר נכלל בהתאמות היחסיות לעסקאות ההשוואה`
       },
       {
         category: 'קומה',
@@ -220,13 +218,12 @@ export class OfficeValuationCalculator {
       recommendations: this.generateRecommendations(property, adjustedValue, marketAnalysis),
       disclaimers: this.getDisclaimers(),
       calculationDetails: {
-        formula: 'שווי = (ממוצע משוקלל × שטח) × מקדם דירוג × מקדם מצב × מקדם קומה',
+        formula: 'שווי = (ממוצע משוקלל מותאם × שטח) × מקדם קומה',
         steps: [
           `שלב 1: חישוב ממוצע משוקלל מעסקאות השוואה: ${valuePerSqm.toLocaleString('he-IL')} ₪/מ"ר`,
           `שלב 2: כפל בשטח (${property.totalArea} מ"ר): ${baseValue.toLocaleString('he-IL')} ₪`,
-          `שלב 3: התאמה לדירוג משרד (${property.officeClass}): ×${classMultiplier}`,
-          `שלב 4: התאמה למצב (${property.condition}): ×${conditionMultiplier}`,
-          `שלב 5: התאמה לקומה: ×${floorAdjustment.toFixed(2)}`,
+          `שלב 3: דירוג ומצב הותאמו פעם אחת ברמת עסקאות ההשוואה`,
+          `שלב 4: התאמה לקומה: ×${floorAdjustment.toFixed(2)}`,
           `שווי סופי: ${adjustedValue.toLocaleString('he-IL')} ₪`
         ],
         sources: [
@@ -451,9 +448,15 @@ export class OfficeValuationCalculator {
     }
     
     if (comparable.officeClass && property.officeClass) {
-      const classOrder = { 'A': 3, 'B': 2, 'C': 1 }
-      const classDiff = classOrder[comparable.officeClass] - classOrder[property.officeClass]
-      adjustments.class = classDiff * -8
+      const subjectClass = this.OFFICE_CLASS_MULTIPLIERS[property.officeClass]
+      const comparableClass = this.OFFICE_CLASS_MULTIPLIERS[comparable.officeClass]
+      adjustments.class = (subjectClass / comparableClass - 1) * 100
+    }
+
+    if (comparable.condition && property.condition) {
+      const subjectCondition = this.CONDITION_MULTIPLIERS[property.condition]
+      const comparableCondition = this.CONDITION_MULTIPLIERS[comparable.condition]
+      adjustments.condition = (subjectCondition / comparableCondition - 1) * 100
     }
     
     if (comparable.parkingSpaces !== undefined && property.parkingSpaces !== undefined) {

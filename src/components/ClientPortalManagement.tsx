@@ -19,7 +19,8 @@ import {
   XCircle,
   ArrowCounterClockwise,
   Sparkle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Download
 } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -28,6 +29,7 @@ import { createLogger } from '@/lib/logger'
 const log = createLogger('ClientPortalManagement')
 import { formatDistanceToNow } from 'date-fns'
 import { he } from 'date-fns/locale'
+import { downloadPublishedReport } from '@/lib/reportExport'
 
 interface ClientPortalManagementProps {
   clients: Client[]
@@ -550,6 +552,21 @@ function ReportsManagementTab({
                       נוצר {formatDistanceToNow(new Date(report.generatedAt), { addSuffix: true, locale: he })}
                     </p>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => {
+                          try {
+                            downloadPublishedReport(report)
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : 'הורדת הדוח נכשלה')
+                          }
+                        }}
+                      >
+                        <Download size={16} />
+                        הורדה
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

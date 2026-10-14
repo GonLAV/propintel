@@ -1,7 +1,6 @@
 'use strict';
 
 const svc = require('../services/users.service');
-const { writeAudit } = require('../../../utils/audit');
 
 async function list(req, res, next) {
   try { res.json(await svc.list(req.user.tenantId, req.query)); }
@@ -15,12 +14,12 @@ async function getById(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const u = await svc.update(req.user.tenantId, req.params.id, req.body);
-    await writeAudit({
-      tenantId: req.user.tenantId, userId: req.user.id, action: 'user.update',
-      entity: 'user', entityId: req.params.id,
-      ip: req.ip, userAgent: req.headers['user-agent'],
-      metadata: { fields: Object.keys(req.body) },
+    const u = await svc.update({
+      tenantId: req.user.tenantId,
+      actor: req.user,
+      targetId: req.params.id,
+      fields: req.body,
+      audit: { ip: req.ip, userAgent: req.headers['user-agent'] },
     });
     res.json(u);
   } catch (err) { next(err); }
@@ -33,12 +32,7 @@ async function changeRole(req, res, next) {
       actor: req.user,
       targetId: req.params.id,
       newRole: req.body.role,
-    });
-    await writeAudit({
-      tenantId: req.user.tenantId, userId: req.user.id, action: 'user.role.change',
-      entity: 'user', entityId: req.params.id,
-      ip: req.ip, userAgent: req.headers['user-agent'],
-      metadata: { newRole: req.body.role },
+      audit: { ip: req.ip, userAgent: req.headers['user-agent'] },
     });
     res.json(u);
   } catch (err) { next(err); }
@@ -48,11 +42,7 @@ async function softDelete(req, res, next) {
   try {
     await svc.softDelete({
       tenantId: req.user.tenantId, actor: req.user, targetId: req.params.id,
-    });
-    await writeAudit({
-      tenantId: req.user.tenantId, userId: req.user.id, action: 'user.delete',
-      entity: 'user', entityId: req.params.id,
-      ip: req.ip, userAgent: req.headers['user-agent'],
+      audit: { ip: req.ip, userAgent: req.headers['user-agent'] },
     });
     res.status(204).end();
   } catch (err) { next(err); }

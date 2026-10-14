@@ -1,23 +1,34 @@
 import express from 'express'
 import cors from 'cors'
 import crypto from 'node:crypto'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { runMvpIngestionPipeline } from './mvp-ingestion.mjs'
 import {
   checkPersistenceHealth,
   getIngestionRun as getPersistedIngestionRun,
   listIngestionRuns as listPersistedIngestionRuns,
+  loadDomainState,
+  saveDomainState,
   saveIngestionRun,
 } from './persistence.mjs'
 
 const app = express()
-const PORT = Number(process.env.PORT || 3001)
+const PORT = readPositiveInteger('PORT', 3001)
 const JSON_LIMIT = process.env.JSON_LIMIT || '2mb'
-const MAX_INGESTION_RECORDS = Number(process.env.MAX_INGESTION_RECORDS || 1000)
-const MAX_COMPARABLES_POOL = Number(process.env.MAX_COMPARABLES_POOL || 2000)
-const MAX_REPORT_FACTS = Number(process.env.MAX_REPORT_FACTS || 100)
-const MEMORY_RETENTION_LIMIT = Number(process.env.MEMORY_RETENTION_LIMIT || 500)
-const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:5001,http://localhost:3000')
+const MAX_INGESTION_RECORDS = readPositiveInteger('MAX_INGESTION_RECORDS', 1000)
+const MAX_COMPARABLES_POOL = readPositiveInteger('MAX_COMPARABLES_POOL', 2000)
+const MAX_REPORT_FACTS = readPositiveInteger('MAX_REPORT_FACTS', 100)
+const MEMORY_RETENTION_LIMIT = readPositiveInteger('MEMORY_RETENTION_LIMIT', 500)
+const RATE_LIMIT_WINDOW_MS = readPositiveInteger('RATE_LIMIT_WINDOW_MS', 60_000)
+const RATE_LIMIT_MAX = readPositiveInteger('RATE_LIMIT_MAX', 100)
+const RATE_LIMIT_IP_MAX = readPositiveInteger('RATE_LIMIT_IP_MAX', RATE_LIMIT_MAX * 3)
+const ALLOWED_ORIGINS = parseAllowedOrigins(
+  process.env.CORS_ORIGINS ||
+  'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5000,http://127.0.0.1:5000,http://localhost:5001,http://127.0.0.1:5001,http://localhost:3000,http://127.0.0.1:3000',
+)
 const API_PRINCIPALS = parseApiPrincipals(process.env.API_AUTH_PRINCIPALS || '')
+const persistedState = await loadDomainState()
 
 app.disable('x-powered-by')
 app.use(requestContext)
@@ -28,9 +39,19 @@ app.use(cors({
 }))
 app.use(express.json({ limit: JSON_LIMIT }))
 
-const comparableRuns = new Map()
-const reports = new Map()
-const auditEvents = []
+const comparableRuns = new Map(
+  persistedState.comparableRuns
+    .filter((run) => isPlainObject(run) && isSafeToken(run.id, 'run_'))
+    .map((run) => [run.id, run]),
+)
+const reports = new Map(
+  persistedState.reports
+    .filter((report) => isPlainObject(report) && isSafeToken(report.reportId, 'report_'))
+    .map((report) => [report.reportId, report]),
+)
+const auditEvents = persistedState.auditEvents.filter(isPlainObject)
+const ipRateLimitBuckets = new Map()
+const principalRateLimitBuckets = new Map()
 
 const valuationStrategies = new Set(['mean', 'weighted-mean', 'hedonic'])
 
@@ -65,7 +86,8 @@ app.get('/api/v1/health/db', asyncHandler(async (_req, res) => {
   return res.json(health)
 }))
 
-app.use('/api/v1', authenticateApi)
+app.use('/api', ipRateLimit)
+app.use('/api/v1', authenticateApi, principalRateLimit)
 
 // --- Ingestion pipeline -----------------------------------------------------
 app.post('/api/v1/ingestion/run', requireRoles('admin', 'appraiser'), asyncHandler(async (req, res) => {
@@ -102,18 +124,19 @@ app.post('/api/v1/ingestion/run', requireRoles('admin', 'appraiser'), asyncHandl
   }
 
   await saveIngestionRun(payload)
-  pushAudit('ingestion-run', runId, 'create', {
+  await pushAudit('ingestion-run', runId, 'create', {
     createdBy,
     totalTransactions: transactions.length,
     totalListings: listings.length,
     elapsedMs: payload.elapsedMs,
-  })
+  }, req.auth.subject)
 
   return res.json(payload)
 }))
 
-app.get('/api/v1/ingestion/runs', requireRoles('admin', 'appraiser'), asyncHandler(async (_req, res) => {
+app.get('/api/v1/ingestion/runs', requireRoles('admin', 'appraiser'), asyncHandler(async (req, res) => {
   const runs = (await listPersistedIngestionRuns(100))
+    .filter((x) => x.createdBy === req.auth.subject)
     .map((x) => ({
       runId: x.runId,
       createdBy: x.createdBy,
@@ -129,11 +152,14 @@ app.get('/api/v1/ingestion/:runId', requireRoles('admin', 'appraiser'), asyncHan
   if (!isSafeToken(req.params.runId, 'ing_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
   const run = await getPersistedIngestionRun(req.params.runId)
   if (!run) return sendError(res, 404, 'NOT_FOUND', 'Ingestion run not found')
+  if (run.createdBy !== req.auth.subject) {
+    return sendError(res, 404, 'NOT_FOUND', 'Ingestion run not found')
+  }
   return res.json(run)
 }))
 
 // --- Comparable search ------------------------------------------------------
-app.post('/api/v1/comparables/search', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
+app.post('/api/v1/comparables/search', requireRoles('admin', 'appraiser', 'analyst'), asyncHandler(async (req, res) => {
   const validation = validateComparableSearchRequest(req.body)
   if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
@@ -174,8 +200,16 @@ app.post('/api/v1/comparables/search', requireRoles('admin', 'appraiser', 'analy
     elapsedMs: Date.now() - started,
   }
 
+  const previousState = captureDomainState()
   comparableRuns.set(runId, run)
-  pushAudit('comparable-run', runId, 'create', { requestedBy, topK })
+  await pushAudit(
+    'comparable-run',
+    runId,
+    'create',
+    { requestedBy, topK },
+    req.auth.subject,
+    previousState,
+  )
 
   return res.json({
     runId,
@@ -191,9 +225,9 @@ app.post('/api/v1/comparables/search', requireRoles('admin', 'appraiser', 'analy
       explanation: x.explanation,
     })),
   })
-})
+}))
 
-app.post('/api/v1/comparables/:runId/adjustments/override', requireRoles('admin', 'appraiser'), (req, res) => {
+app.post('/api/v1/comparables/:runId/adjustments/override', requireRoles('admin', 'appraiser'), asyncHandler(async (req, res) => {
   const { runId } = req.params
   if (!isSafeToken(runId, 'run_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
 
@@ -205,11 +239,15 @@ app.post('/api/v1/comparables/:runId/adjustments/override', requireRoles('admin'
   const run = comparableRuns.get(runId)
 
   if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
+  if (!ownsResource(run, req.auth.subject, 'requestedBy')) {
+    return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
+  }
 
   const idx = run.comparables.findIndex((x) => x.candidateId === candidateId)
   if (idx < 0) return sendError(res, 404, 'NOT_FOUND', 'Candidate not found in run')
 
   const current = run.comparables[idx]
+  const previousState = captureDomainState()
   const next = {
     ...current.adjustment,
     ...patch,
@@ -238,12 +276,12 @@ app.post('/api/v1/comparables/:runId/adjustments/override', requireRoles('admin'
   }
 
   const auditEventId = `audit_${crypto.randomUUID()}`
-  pushAudit('adjustment-override', candidateId, 'update', {
+  await pushAudit('adjustment-override', candidateId, 'update', {
     auditEventId,
     appraiserId,
     reason,
     patch,
-  })
+  }, req.auth.subject, previousState)
 
   return res.json({
     runId,
@@ -252,10 +290,10 @@ app.post('/api/v1/comparables/:runId/adjustments/override', requireRoles('admin'
     updatedAdjustment: next,
     auditEventId,
   })
-})
+}))
 
 // --- Valuation --------------------------------------------------------------
-app.post('/api/v1/valuations/estimate', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
+app.post('/api/v1/valuations/estimate', requireRoles('admin', 'appraiser', 'analyst'), asyncHandler(async (req, res) => {
   const { runId, strategy = 'weighted-mean' } = req.body || {}
   if (!isSafeToken(runId, 'run_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid runId')
   if (!valuationStrategies.has(strategy)) {
@@ -264,14 +302,17 @@ app.post('/api/v1/valuations/estimate', requireRoles('admin', 'appraiser', 'anal
 
   const run = comparableRuns.get(runId)
   if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
+  if (!ownsResource(run, req.auth.subject, 'requestedBy')) {
+    return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
+  }
 
   const result = calculateValuation(run.comparables, strategy)
-  pushAudit('valuation', runId, 'create', { strategy, result })
+  await pushAudit('valuation', runId, 'create', { strategy, result }, req.auth.subject)
   return res.json({ runId, strategy, ...result })
-})
+}))
 
 // Backward compatibility endpoint
-app.post('/api/valuations', authenticateApi, requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
+app.post('/api/valuations', authenticateApi, principalRateLimit, requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   const { propertyId, method } = req.body || {}
   if (!propertyId || !method) {
     return sendError(res, 400, 'BAD_REQUEST', 'propertyId and method required')
@@ -288,7 +329,7 @@ app.post('/api/valuations', authenticateApi, requireRoles('admin', 'appraiser', 
 })
 
 // --- Report generation ------------------------------------------------------
-app.post('/api/v1/reports/generate', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
+app.post('/api/v1/reports/generate', requireRoles('admin', 'appraiser', 'analyst'), asyncHandler(async (req, res) => {
   const validation = validateReportGenerateRequest(req.body)
   if (!validation.ok) return sendError(res, 400, 'BAD_REQUEST', validation.error)
 
@@ -296,6 +337,12 @@ app.post('/api/v1/reports/generate', requireRoles('admin', 'appraiser', 'analyst
 
   const run = comparableRuns.get(runId)
   if (!run) return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
+  if (!ownsResource(run, req.auth.subject, 'requestedBy')) {
+    return sendError(res, 404, 'NOT_FOUND', 'Comparable run not found')
+  }
+  if (subjectProperty.id !== run.subject.id) {
+    return sendError(res, 409, 'CONFLICT', 'Report subject must match the comparable run subject')
+  }
 
   const valuation = calculateValuation(run.comparables, 'weighted-mean')
   const sections = buildReportSections({
@@ -309,12 +356,14 @@ app.post('/api/v1/reports/generate', requireRoles('admin', 'appraiser', 'analyst
   const validations = validateReport({ valuation, documentFacts, comparables: run.comparables })
 
   const reportId = `report_${crypto.randomUUID()}`
+  const previousState = captureDomainState()
   const payload = {
     reportId,
     version: 1,
     templateId,
     language,
     createdAt: new Date().toISOString(),
+    createdBy: req.auth.subject,
     runId,
     sections,
     validations,
@@ -322,23 +371,36 @@ app.post('/api/v1/reports/generate', requireRoles('admin', 'appraiser', 'analyst
   }
   reports.set(reportId, payload)
 
-  pushAudit('report', reportId, 'create', { runId, templateId, language })
+  await pushAudit(
+    'report',
+    reportId,
+    'create',
+    { runId, templateId, language },
+    req.auth.subject,
+    previousState,
+  )
   return res.json(payload)
-})
+}))
 
 app.post('/api/v1/reports/:reportId/validate', requireRoles('admin', 'appraiser', 'analyst'), (req, res) => {
   if (!isSafeToken(req.params.reportId, 'report_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid reportId')
   const report = reports.get(req.params.reportId)
   if (!report) return sendError(res, 404, 'NOT_FOUND', 'Report not found')
+  if (!ownsResource(report, req.auth.subject, 'createdBy')) {
+    return sendError(res, 404, 'NOT_FOUND', 'Report not found')
+  }
 
   const status = report.validations.some((x) => x.severity === 'error') ? 'fail' : 'pass'
   return res.json({ reportId: req.params.reportId, status, issues: report.validations })
 })
 
-app.post('/api/v1/reports/:reportId/finalize', requireRoles('admin', 'appraiser'), (req, res) => {
+app.post('/api/v1/reports/:reportId/finalize', requireRoles('admin', 'appraiser'), asyncHandler(async (req, res) => {
   if (!isSafeToken(req.params.reportId, 'report_')) return sendError(res, 400, 'BAD_REQUEST', 'Invalid reportId')
   const report = reports.get(req.params.reportId)
   if (!report) return sendError(res, 404, 'NOT_FOUND', 'Report not found')
+  if (!ownsResource(report, req.auth.subject, 'createdBy')) {
+    return sendError(res, 404, 'NOT_FOUND', 'Report not found')
+  }
   const appraiserId = req.auth.subject
   const approvalComment = sanitizeString(req.body?.approvalComment, 1000)
   if (!approvalComment) {
@@ -347,6 +409,9 @@ app.post('/api/v1/reports/:reportId/finalize', requireRoles('admin', 'appraiser'
 
   if (report.validations.some((x) => x.severity === 'error')) {
     return sendError(res, 409, 'CONFLICT', 'Report has validation errors and cannot be finalized')
+  }
+  if (report.status === 'finalized') {
+    return sendError(res, 409, 'CONFLICT', 'Report is already finalized')
   }
 
   const finalized = {
@@ -358,12 +423,30 @@ app.post('/api/v1/reports/:reportId/finalize', requireRoles('admin', 'appraiser'
     approvalComment,
     approvedAt: new Date().toISOString(),
   }
-  pushAudit('report', report.reportId, 'finalize', finalized)
+  const previousState = captureDomainState()
+  reports.set(report.reportId, {
+    ...report,
+    ...finalized,
+    status: 'finalized',
+    readyForFinalApproval: false,
+  })
+  await pushAudit(
+    'report',
+    report.reportId,
+    'finalize',
+    finalized,
+    req.auth.subject,
+    previousState,
+  )
   return res.json(finalized)
-})
+}))
 
-app.get('/api/v1/audit/events', requireRoles('admin'), (_req, res) => {
-  return res.json({ count: auditEvents.length, events: auditEvents.slice(-500).reverse() })
+app.get('/api/v1/audit/events', requireRoles('admin'), (req, res) => {
+  const events = auditEvents
+    .filter((event) => event.actorSubject === req.auth.subject)
+    .slice(-500)
+    .reverse()
+  return res.json({ count: events.length, events })
 })
 
 function calculateValuation(candidates, strategy) {
@@ -481,11 +564,11 @@ function validateReport({ valuation, documentFacts, comparables }) {
   }
 
   if ((comparables || []).length < 3) {
-    issues.push({ key: 'comparables.low-count', severity: 'warning', message: 'Less than 3 comparables in analysis' })
+    issues.push({ key: 'comparables.low-count', severity: 'error', message: 'At least 3 comparables are required for final approval' })
   }
 
   if (valuation.confidenceScore < 55) {
-    issues.push({ key: 'valuation.low-confidence', severity: 'warning', message: 'Low confidence score' })
+    issues.push({ key: 'valuation.low-confidence', severity: 'error', message: 'Confidence score must be at least 55 for final approval' })
   }
 
   return issues
@@ -611,18 +694,38 @@ function stddev(values) {
   return Math.sqrt(variance)
 }
 
-function pushAudit(entityType, entityId, eventType, payload) {
-  auditEvents.push({
+async function pushAudit(
+  entityType,
+  entityId,
+  eventType,
+  payload,
+  actorSubject,
+  previousState = captureDomainState(),
+) {
+  const event = {
     id: `audit_${crypto.randomUUID()}`,
     entityType,
     entityId,
     eventType,
+    actorSubject,
     payload,
     createdAt: new Date().toISOString(),
-  })
-  trimMap(comparableRuns, MEMORY_RETENTION_LIMIT)
-  trimMap(reports, MEMORY_RETENTION_LIMIT)
-  trimArray(auditEvents, MEMORY_RETENTION_LIMIT)
+  }
+  auditEvents.push(event)
+  try {
+    trimMap(comparableRuns, MEMORY_RETENTION_LIMIT)
+    trimMap(reports, MEMORY_RETENTION_LIMIT)
+    trimArray(auditEvents, MEMORY_RETENTION_LIMIT)
+    await saveDomainState({
+      comparableRuns: [...comparableRuns.values()],
+      reports: [...reports.values()],
+      auditEvents,
+    })
+  } catch (error) {
+    restoreDomainState(previousState)
+    throw error
+  }
+  return event
 }
 
 function monthsAgo(date) {
@@ -704,6 +807,47 @@ function corsOrigin(origin, callback) {
   return callback(new Error(`Origin ${origin} not allowed`))
 }
 
+function ipRateLimit(req, res, next) {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown'
+  return applyRateLimit(ipRateLimitBuckets, key, RATE_LIMIT_IP_MAX, req, res, next)
+}
+
+function principalRateLimit(req, res, next) {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+  const key = `${req.auth.subject}:${ip}`
+  return applyRateLimit(principalRateLimitBuckets, key, RATE_LIMIT_MAX, req, res, next)
+}
+
+function applyRateLimit(buckets, key, limit, req, res, next) {
+  const now = Date.now()
+  const current = buckets.get(key)
+
+  if (!current || current.resetAt <= now) {
+    buckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    res.setHeader('x-ratelimit-limit', limit)
+    res.setHeader('x-ratelimit-remaining', Math.max(0, limit - 1))
+    return next()
+  }
+
+  current.count += 1
+  res.setHeader('x-ratelimit-limit', limit)
+  res.setHeader('x-ratelimit-remaining', Math.max(0, limit - current.count))
+  res.setHeader('x-ratelimit-reset', Math.ceil(current.resetAt / 1000))
+
+  if (current.count > limit) {
+    res.setHeader('retry-after', Math.max(1, Math.ceil((current.resetAt - now) / 1000)))
+    return sendError(res, 429, 'RATE_LIMITED', 'Too many requests')
+  }
+
+  if (buckets.size > 10_000) {
+    for (const [bucketKey, bucket] of buckets) {
+      if (bucket.resetAt <= now) buckets.delete(bucketKey)
+    }
+  }
+
+  return next()
+}
+
 function parseApiPrincipals(value) {
   if (!value.trim()) return []
 
@@ -781,6 +925,10 @@ function secureTokenEqual(actual, expected) {
   return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer)
 }
 
+function ownsResource(resource, subject, ownerField) {
+  return isPlainObject(resource) && resource[ownerField] === subject
+}
+
 function asyncHandler(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 }
@@ -821,6 +969,16 @@ function sanitizeToken(value, maxLength = 160) {
 
 function isSafeToken(value, prefix) {
   return typeof value === 'string' && value.startsWith(prefix) && /^[A-Za-z0-9._:-]+$/.test(value) && value.length <= 160
+}
+
+function readPositiveInteger(name, fallback) {
+  const raw = process.env[name]
+  if (raw === undefined || raw === '') return fallback
+  const value = Number(raw)
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`)
+  }
+  return value
 }
 
 function toFiniteNumber(value, fallback = 0) {
@@ -943,6 +1101,28 @@ function trimArray(array, maxSize) {
   if (array.length > maxSize) array.splice(0, array.length - maxSize)
 }
 
+function captureDomainState() {
+  return structuredClone({
+    comparableRuns: [...comparableRuns.values()],
+    reports: [...reports.values()],
+    auditEvents,
+  })
+}
+
+function restoreDomainState(state) {
+  comparableRuns.clear()
+  for (const run of state.comparableRuns) comparableRuns.set(run.id, run)
+
+  reports.clear()
+  for (const report of state.reports) reports.set(report.reportId, report)
+
+  auditEvents.splice(0, auditEvents.length, ...state.auditEvents)
+}
+
+app.use('/api', (req, res) => {
+  return sendError(res, 404, 'NOT_FOUND', `Route ${req.method} ${req.originalUrl} was not found`)
+})
+
 app.use((err, req, res, _next) => {
   const isCors = err instanceof Error && err.message.includes('not allowed')
   const status = isCors ? 403 : 500
@@ -950,10 +1130,22 @@ app.use((err, req, res, _next) => {
   return sendError(res, status, isCors ? 'FORBIDDEN' : 'INTERNAL_ERROR', isCors ? err.message : 'Internal server error')
 })
 
-app.listen(PORT, () => {
-  console.log(`✓ Backend server running on http://localhost:${PORT}`)
-  console.log(`✓ Health check: http://localhost:${PORT}/health`)
-  if (API_PRINCIPALS.length === 0) {
-    console.warn('⚠ API routes are locked because API_AUTH_PRINCIPALS is not configured')
-  }
-})
+export function startServer(port = PORT) {
+  const server = app.listen(port, () => {
+    const address = server.address()
+    const activePort = address && typeof address !== 'string' ? address.port : port
+    console.log(`✓ Backend server running on http://localhost:${activePort}`)
+    console.log(`✓ Health check: http://localhost:${activePort}/health`)
+    if (API_PRINCIPALS.length === 0) {
+      console.warn('⚠ API routes are locked because API_AUTH_PRINCIPALS is not configured')
+    }
+  })
+  return server
+}
+
+export { app }
+
+const entryPoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : ''
+if (entryPoint === import.meta.url) {
+  startServer()
+}

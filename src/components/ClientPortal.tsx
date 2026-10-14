@@ -37,15 +37,19 @@ import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import { he } from 'date-fns/locale'
 import { uid } from '@/lib/utils'
+import { downloadPublishedReport } from '@/lib/reportExport'
 
 interface ClientPortalProps {
   clients: Client[]
   properties: Property[]
-  authenticatedEmail: string
+  clientPrincipal?: {
+    clientId: string
+    email: string
+  }
   onBackToAdmin: () => void
 }
 
-export function ClientPortal({ clients, properties, authenticatedEmail, onBackToAdmin }: ClientPortalProps) {
+export function ClientPortal({ clients, properties, clientPrincipal, onBackToAdmin }: ClientPortalProps) {
   const [reports, _setReports] = useKV<Report[]>('client-portal-reports', [])
   const [updateRequests, setUpdateRequests] = useKV<UpdateRequest[]>('client-portal-requests', [])
   const [activities, setActivities] = useKV<ClientActivity[]>('client-portal-activities', [])
@@ -54,9 +58,12 @@ export function ClientPortal({ clients, properties, authenticatedEmail, onBackTo
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'property'>('date')
-  const selectedClient = clients.find(
-    (client) => client.email.toLowerCase() === authenticatedEmail.trim().toLowerCase(),
-  ) || null
+  const selectedClient = clientPrincipal
+    ? clients.find(
+        client => client.id === clientPrincipal.clientId
+          && client.email.toLowerCase() === clientPrincipal.email.trim().toLowerCase(),
+      ) || null
+    : null
 
   const handleLogout = () => {
     if (selectedClient) {
@@ -78,7 +85,7 @@ export function ClientPortal({ clients, properties, authenticatedEmail, onBackTo
   }
 
   const clientReports = (reports || []).filter(r => r.clientId === selectedClient?.id)
-  const clientProperties = (properties || []).filter(p => selectedClient?.properties.includes(p.id))
+  const clientProperties = (properties || []).filter(p => p.clientId === selectedClient?.id)
   const clientRequests = (updateRequests || []).filter(r => r.clientId === selectedClient?.id)
   const clientActivities = (activities || []).filter(a => a.clientId === selectedClient?.id).slice(0, 10)
 
@@ -100,7 +107,7 @@ export function ClientPortal({ clients, properties, authenticatedEmail, onBackTo
   })
 
   if (!selectedClient) {
-    return <PortalUnavailable authenticatedEmail={authenticatedEmail} onBack={onBackToAdmin} />
+    return <PortalUnavailable onBack={onBackToAdmin} />
   }
 
   return (
@@ -207,9 +214,14 @@ export function ClientPortal({ clients, properties, authenticatedEmail, onBackTo
                         setSelectedReport(r)
                         logActivity(selectedClient.id, 'view-report', `צפייה בדוח: ${r.title}`, { reportId: r.id })
                       }}
-                      onDownload={(r) => {
-                        logActivity(selectedClient.id, 'download-report', `הורדת דוח: ${r.title}`, { reportId: r.id })
-                        toast.success('הדוח הורד בהצלחה')
+                      onDownload={async (r) => {
+                        try {
+                          await downloadPublishedReport(r)
+                          logActivity(selectedClient.id, 'download-report', `הורדת דוח: ${r.title}`, { reportId: r.id })
+                          toast.success('הדוח הורד בהצלחה')
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : 'הורדת הדוח נכשלה')
+                        }
                       }}
                     />
                   ))}
@@ -290,8 +302,7 @@ export function ClientPortal({ clients, properties, authenticatedEmail, onBackTo
   )
 }
 
-function PortalUnavailable({ authenticatedEmail, onBack }: {
-  authenticatedEmail: string
+function PortalUnavailable({ onBack }: {
   onBack: () => void
 }) {
   return (
@@ -311,15 +322,14 @@ function PortalUnavailable({ authenticatedEmail, onBack }: {
             <div>
               <CardTitle className="text-3xl font-bold">פורטל לקוח</CardTitle>
               <CardDescription className="text-base mt-2">
-                הגישה לפורטל מבוססת על זהות Spark מאומתת
+                נדרשת מערכת אימות לקוחות נפרדת
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
-              לא נמצא לקוח המקושר לחשבון המאומת
-              {authenticatedEmail ? ` (${authenticatedEmail})` : ''}.
-              יש לקשר את כתובת החשבון לרשומת לקוח לפני פתיחת הפורטל.
+              סביבת Spark מאמתת את בעל סביבת הניהול בלבד ואינה מהווה אימות לקוח.
+              כדי לפתוח את הפורטל יש להוסיף ספק אימות צד-שרת שמנפיק זהות לקוח ומוודא הרשאה לרשומה המתאימה.
             </div>
             <Button 
               onClick={onBack} 
@@ -354,7 +364,7 @@ function ClientPortalHeader({ client, onLogout }: { client: Client; onLogout: ()
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="relative">
+          <Button variant="ghost" size="icon" className="relative" aria-label="התראות">
             <Bell size={20} />
             <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
           </Button>
@@ -479,6 +489,7 @@ function ReportCard({
                 onClick={() => onView(report)}
                 className="opacity-70 group-hover:opacity-100 transition-opacity"
                 title="צפייה"
+                aria-label={`צפייה בדוח ${report.title}`}
               >
                 <Eye size={18} />
               </Button>
@@ -488,6 +499,7 @@ function ReportCard({
                 onClick={() => onDownload(report)}
                 className="opacity-70 group-hover:opacity-100 transition-opacity"
                 title="הורדה"
+                aria-label={`הורדת דוח ${report.title}`}
               >
                 <Download size={18} />
               </Button>
@@ -895,7 +907,14 @@ function ReportViewDialog({
               </div>
             </div>
 
-            {report.sections.filter(s => s.enabled).map(section => (
+            {report.contentHtml ? (
+              <iframe
+                title={`תצוגה מקדימה — ${report.title}`}
+                sandbox=""
+                srcDoc={report.contentHtml}
+                className="h-[500px] w-full rounded-lg border bg-white"
+              />
+            ) : report.sections.filter(s => s.enabled).map(section => (
               <div key={section.id} className="space-y-2">
                 <h3 className="text-lg font-semibold">{section.title}</h3>
                 <div className="p-4 rounded-lg bg-card/50 border border-border/50">
@@ -908,7 +927,16 @@ function ReportViewDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>סגור</Button>
-          <Button className="gap-2">
+          <Button
+            className="gap-2"
+            onClick={async () => {
+              try {
+                await downloadPublishedReport(report)
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'הורדת הדוח נכשלה')
+              }
+            }}
+          >
             <Download size={18} />
             הורדה
           </Button>

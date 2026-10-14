@@ -96,11 +96,11 @@ export function PlanningConsole() {
           <div className="border-b border-white/10 p-5 md:p-6">
             <Badge className="border-cyan/20 bg-cyan/10 text-cyan">
               <DatabaseZap className="size-3.5" />
-              Planning intelligence
+              Demo planning fixtures
             </Badge>
             <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">Government planning rights console</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/56">
-              Compare previous and new statutory plans, extract buildable area changes, and prepare betterment levy inputs with traceable source context.
+              Compare built-in illustrative records and prepare betterment levy inputs. No live government service is queried; verify every result against the official authority.
             </p>
           </div>
 

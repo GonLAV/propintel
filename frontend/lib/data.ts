@@ -36,7 +36,7 @@ export const features = [
   {
     icon: Radar,
     title: 'Market intelligence engine',
-    description: 'Live comparable scoring, zoning signals, rental yield context, and confidence scoring in one operating layer.',
+    description: 'Deterministic demo scoring for comparable, zoning, rental-yield, and confidence workflows, ready to connect to verified data services.',
   },
   {
     icon: FileSearch,
@@ -45,8 +45,8 @@ export const features = [
   },
   {
     icon: ShieldCheck,
-    title: 'Built for regulated teams',
-    description: 'JWT auth, tenant-aware data boundaries, audit trails, and schema-first API design for serious production use.',
+    title: 'Security-conscious foundation',
+    description: 'Administrator-configured JWT sessions, httpOnly cookies, protected APIs, and schema-first adapters; tenant isolation and enterprise audit storage require a backend.',
   },
   {
     icon: Workflow,
@@ -81,9 +81,9 @@ export const pricingPlans = [
   {
     name: 'Scale',
     price: '$499',
-    description: 'For growing operators that need secure collaboration, auditability, and advanced data flows.',
+    description: 'Illustrative packaging for teams planning secure collaboration, auditability, and advanced data flows.',
     featured: true,
-    features: ['Unlimited seats', '2,500 valuations per month', 'API access', 'Tenant audit logs', 'Priority support'],
+    features: ['Example unlimited-seat tier', 'Example 2,500-run allowance', 'Protected API routes', 'Backend audit integration required', 'Deployment support'],
   },
   {
     name: 'Enterprise',
@@ -131,6 +131,6 @@ export const activity = [
   { title: 'Comparable override approved', detail: 'Noise adjustment changed from -3% to -5%', time: '1h ago' },
 ]
 
-export const integrations = ['PostgreSQL', 'JWT Auth', 'Gov Data', 'GIS Layers', 'PDF Export', 'Audit Logs']
+export const integrations = ['Postgres adapter', 'JWT session', 'Gov data adapter', 'GIS adapter', 'Export prototype', 'Optional event logs']
 
 export const heroHighlights = [Sparkles, BarChart3, ShieldCheck]

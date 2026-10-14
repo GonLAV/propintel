@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from 'next'
+import { getPublicAppUrl } from '@/lib/public-url'
 import './globals.css'
 
+const publicAppUrl = getPublicAppUrl()
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: publicAppUrl || undefined,
   title: {
     default: 'PropIntel | Premium Real Estate Valuation Platform',
     template: '%s | PropIntel',

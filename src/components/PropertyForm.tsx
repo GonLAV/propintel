@@ -81,6 +81,10 @@ export function PropertyForm({ property, clients, onSave, onCancel }: PropertyFo
       toast.error('אנא מלא את כל השדות החובה')
       return
     }
+    if (!Number.isFinite(formData.details?.builtArea) || (formData.details?.builtArea || 0) <= 0) {
+      toast.error('שטח בנוי חייב להיות מספר חיובי')
+      return
+    }
 
     const propertyToSave: Property = {
       id: property?.id || `prop-${Date.now()}`,
@@ -94,7 +98,7 @@ export function PropertyForm({ property, clients, onSave, onCancel }: PropertyFo
       photos: formData.photos || [],
       createdAt: property?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      valuationData: property?.valuationData
+      valuationData: formData.valuationData
     }
 
     onSave(propertyToSave)
@@ -120,7 +124,7 @@ export function PropertyForm({ property, clients, onSave, onCancel }: PropertyFo
           min: presetData.estimatedValue.min,
           max: presetData.estimatedValue.max
         },
-        confidence: 0.75,
+        confidence: 75,
         method: 'comparable-sales',
         comparables: [],
         notes: `הערכה אוטומטית מבוססת פריסטים של ${formData.address?.city || 'אזור'}`
@@ -254,6 +258,8 @@ export function PropertyForm({ property, clients, onSave, onCancel }: PropertyFo
                 <Input
                   id="builtArea"
                   type="number"
+                  min="0.01"
+                  step="0.01"
                   value={formData.details?.builtArea || ''}
                   onChange={(e) => setFormData({
                     ...formData,

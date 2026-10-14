@@ -1,12 +1,19 @@
+import { useState } from 'react'
 import type { Client, Property } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatILSCompact } from '@/lib/format'
-import { Envelope, Phone, BuildingOffice, TrendUp, CheckCircle, Users, Plus } from '@phosphor-icons/react'
+import { Envelope, Phone, BuildingOffice, TrendUp, CheckCircle, Users, Plus, PencilSimple, Trash } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
+import { uid } from '@/lib/utils'
 
 interface ClientManagerProps {
   clients: Client[]
@@ -15,36 +22,108 @@ interface ClientManagerProps {
   onSelectProperty: (property: Property) => void
 }
 
-export function ClientManager({ clients, properties, onSelectProperty }: ClientManagerProps) {
-  if (clients.length === 0) {
-    return (
-      <div>
+const emptyClient = {
+  name: '',
+  email: '',
+  phone: '',
+  company: '',
+  notes: '',
+}
+
+export function ClientManager({ clients, properties, onUpdateClients, onSelectProperty }: ClientManagerProps) {
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [draft, setDraft] = useState(emptyClient)
+  const [visibleClientCount, setVisibleClientCount] = useState(24)
+
+  const openCreate = () => {
+    setEditingClient(null)
+    setDraft(emptyClient)
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (client: Client) => {
+    setEditingClient(client)
+    setDraft({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      company: client.company || '',
+      notes: client.notes,
+    })
+    setIsDialogOpen(true)
+  }
+
+  const saveClient = () => {
+    if (!draft.name.trim() || !draft.email.trim() || !draft.phone.trim()) {
+      toast.error('שם, אימייל וטלפון הם שדות חובה')
+      return
+    }
+    const duplicateEmail = clients.some(
+      client => client.id !== editingClient?.id && client.email.toLowerCase() === draft.email.trim().toLowerCase(),
+    )
+    if (duplicateEmail) {
+      toast.error('כבר קיים לקוח עם כתובת אימייל זו')
+      return
+    }
+
+    const next: Client = {
+      id: editingClient?.id || uid('client'),
+      name: draft.name.trim(),
+      email: draft.email.trim(),
+      phone: draft.phone.trim(),
+      company: draft.company.trim() || undefined,
+      notes: draft.notes.trim(),
+      createdAt: editingClient?.createdAt || new Date().toISOString(),
+      properties: editingClient?.properties || [],
+    }
+    onUpdateClients(editingClient
+      ? clients.map(client => client.id === next.id ? next : client)
+      : [...clients, next])
+    setIsDialogOpen(false)
+    toast.success(editingClient ? 'הלקוח עודכן' : 'הלקוח נוסף')
+  }
+
+  const deleteClient = (client: Client) => {
+    if (properties.some(property => property.clientId === client.id)) {
+      toast.error('לא ניתן למחוק לקוח המקושר לנכסים. יש להעביר או למחוק את הנכסים תחילה.')
+      return
+    }
+    if (!window.confirm(`למחוק את ${client.name}?`)) return
+    onUpdateClients(clients.filter(item => item.id !== client.id))
+    toast.success('הלקוח נמחק')
+  }
+
+  return (
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <Button className="gap-2" onClick={openCreate}>
+          <Plus size={18} weight="bold" />
+          הוסף לקוח
+        </Button>
         <PageHeader title="ניהול לקוחות" description="כל הלקוחות והנכסים שלהם" />
+      </div>
+
+      {clients.length === 0 ? (
         <EmptyState
           icon={<Users size={32} weight="duotone" />}
           title="אין לקוחות עדיין"
           description="הוסף את הלקוח הראשון שלך כדי להתחיל לנהל נכסים ושומות."
           action={
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={openCreate}>
               <Plus size={18} weight="bold" />
               הוסף לקוח
             </Button>
           }
         />
-      </div>
-    )
-  }
-
-  return (
-    <motion.div 
-      className="space-y-8"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
-      <PageHeader title="ניהול לקוחות" description="כל הלקוחות והנכסים שלהם" />
-
+      ) : (
+      <>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {clients.map((client, i) => {
+        {clients.slice(0, visibleClientCount).map((client, i) => {
           const clientProperties = properties.filter(p => p.clientId === client.id)
           const completedCount = clientProperties.filter(p => p.status === 'completed' || p.status === 'sent').length
           const totalValue = clientProperties.reduce((sum, p) => sum + (p.valuationData?.estimatedValue || 0), 0)
@@ -82,6 +161,16 @@ export function ClientManager({ clients, properties, onSelectProperty }: ClientM
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEdit(client)} className="gap-1">
+                      <PencilSimple size={15} />
+                      עריכה
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => deleteClient(client)} className="gap-1">
+                      <Trash size={15} />
+                      מחיקה
+                    </Button>
+                  </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm" dir="rtl">
                       <Envelope size={16} weight="duotone" className="text-primary" />
@@ -152,6 +241,47 @@ export function ClientManager({ clients, properties, onSelectProperty }: ClientM
           )
         })}
       </div>
+      {visibleClientCount < clients.length && (
+        <Button variant="outline" className="w-full" onClick={() => setVisibleClientCount(count => count + 24)}>
+          טען עוד לקוחות ({clients.length - visibleClientCount} נותרו)
+        </Button>
+      )}
+      </>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>{editingClient ? 'עריכת לקוח' : 'לקוח חדש'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-name">שם *</Label>
+              <Input id="client-name" value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-email">אימייל *</Label>
+              <Input id="client-email" type="email" value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-phone">טלפון *</Label>
+              <Input id="client-phone" type="tel" value={draft.phone} onChange={event => setDraft({ ...draft, phone: event.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-company">חברה</Label>
+              <Input id="client-company" value={draft.company} onChange={event => setDraft({ ...draft, company: event.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-notes">הערות</Label>
+              <Textarea id="client-notes" value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>ביטול</Button>
+            <Button onClick={saveClient}>שמירה</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

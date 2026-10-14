@@ -1,32 +1,6 @@
 import { useMemo, useState } from 'react'
-import type { ViewId } from '@/lib/viewRegistry'
-import { 
-  House, 
-  ChartBar, 
-  Users, 
-  UserCircle, 
-  CurrencyDollar, 
-  Palette, 
-  Calculator, 
-  Lightning, 
-  FolderOpen, 
-  FileText, 
-  Buildings, 
-  MagnifyingGlass,
-  X,
-  ChartLineUp,
-  Briefcase,
-  Scales,
-  Key,
-  MapTrifold,
-  ArrowsLeftRight,
-  Camera,
-  CalendarBlank,
-  Microphone,
-  Image,
-  ThermometerHot,
-  Detective,
-} from '@phosphor-icons/react'
+import { VIEW_DEFINITIONS, VIEW_GROUPS, type ViewId } from '@/lib/viewRegistry'
+import { House, MagnifyingGlass, X } from '@phosphor-icons/react'
 import { 
   Sidebar, 
   SidebarContent, 
@@ -51,80 +25,10 @@ interface AppSidebarProps {
 export function AppSidebar({ activeView, onNavigate }: AppSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const menuItems = useMemo(
-    () => [
-      {
-        title: 'ראשי',
-        items: [
-          { id: 'dashboard', label: 'לוח בקרה', icon: House, keywords: ['בית', 'דשבורד', 'סטטיסטיקות', 'ראשי'] },
-          { id: 'properties', label: 'נכסים', icon: Buildings, keywords: ['דירות', 'בתים', 'מקרקעין', 'רכוש'] },
-          { id: 'clients', label: 'לקוחות', icon: Users, keywords: ['קונים', 'מוכרים', 'משקיעים', 'אנשי קשר'] }
-        ]
-      },
-      {
-        title: 'שומות',
-        items: [
-          { id: 'data-gov-valuation', label: '🇮🇱 Data.gov.il - שמאות ממשלתית', icon: Calculator, keywords: ['ממשלה', 'data.gov.il', 'אמיתי', 'שקוף', 'API', 'מקצועי', 'לגיטימי'] },
-          { id: 'quicker', label: 'QUICKER - שומה מהירה', icon: Lightning, keywords: ['מהיר', 'פשוט', 'בסיסי', 'חישוב', 'שטח', 'מחיר'] },
-          { id: 'residential-valuation', label: 'שווי דירות מגורים', icon: House, keywords: ['דירות', 'מגורים', 'דיור', 'nadlan', 'נדלן'] },
-          { id: 'commercial-valuation', label: 'שווי נכסי מסחר', icon: Briefcase, keywords: ['מסחר', 'חנויות', 'מסעדות', 'nadlan', 'נדלן', 'משרדים', 'מסחרי', 'NOI', 'היוון', 'חלל עבודה', 'אופיס'] },
-          { id: 'land-valuation', label: 'שווי קרקעות', icon: ChartLineUp, keywords: ['קרקע', 'מגרש', 'זכויות בנייה', 'nadlan', 'נדלן'] },
-          { id: 'betterment-levy', label: 'היטל השבחה', icon: Scales, keywords: ['היטל', 'השבחה', 'תכנון', 'זכויות', 'תב"ע', 'מועד קובע'] },
-          { id: 'calculators', label: 'מחשבונים נוספים', icon: Calculator, keywords: ['חישוב', 'התאמות', 'נוסחאות', 'השוואה', 'בולק', 'מרובה', 'פורטפוליו', 'חלוקה', 'פיצול', 'בניין', 'דירות', 'יחידות', 'תמ"א', 'פינוי בינוי'] }
-        ]
-      },
-      {
-        title: 'עבודת שטח',
-        items: [
-          { id: 'smart-inspection', label: 'ביקור חכם בנכס', icon: Camera, keywords: ['צילום', 'ביקור', 'צ\'ק ליסט', 'מדידה', 'ליקויים', 'שטח', 'תיעוד'] },
-          { id: 'visit-manager', label: 'ניהול ביקורים', icon: CalendarBlank, keywords: ['לוח שנה', 'פגישות', 'תיאום', 'מעקב', 'שטח'] },
-          { id: 'voice-report', label: 'דוח קולי', icon: Microphone, keywords: ['קול', 'הקלטה', 'תמלול', 'דיבור', 'AI', 'דוח'] },
-          { id: 'before-after', label: 'לפני / אחרי', icon: Image, keywords: ['שיפוץ', 'השוואה', 'צילום', 'תיקון', 'מצב'] },
-          { id: 'ai-photo-analysis', label: 'ניתוח תמונות AI', icon: Camera, keywords: ['AI', 'תמונה', 'ליקוי', 'זיהוי', 'שיפוץ', 'עלות', 'מצלמה'] },
-        ]
-      },
-      {
-        title: 'ניתוח שוק',
-        items: [
-          { id: 'insights', label: 'ניתוח ותובנות', icon: ChartBar, keywords: ['מגמות', 'סטטיסטיקות', 'נתונים', 'גרפים', 'שוק', 'AI', 'בינה מלאכותית', 'חיזוי'] },
-          { id: 'transactions-map', label: 'מפת עסקאות ארצית', icon: MapTrifold, keywords: ['מפה', 'עסקאות', 'ישראל', 'גאוגרפי', 'מיקום', 'אזורי', 'ארצי', 'נדלן', 'ממשלה'] },
-          { id: 'property-comparison', label: 'השוואת נכסים', icon: ArrowsLeftRight, keywords: ['השוואה', 'נכסים', 'מקביל', 'דומים', 'התאמות', 'מחיר'] },
-          { id: 'market-heatmap', label: 'מפת חום — השקעות', icon: ThermometerHot, keywords: ['חם', 'קר', 'השקעה', 'תשואה', 'סיכון', 'מגמות', 'מפה'] },
-          { id: 'anomaly-detector', label: 'גלאי חריגות', icon: Detective, keywords: ['חריג', 'הונאה', 'חשוד', 'מחיר', 'אזהרה', 'בדיקה'] },
-          { id: 'valuation-assistant', label: 'עוזר שמאות AI', icon: Scales, keywords: ['שומה', 'AI', 'השוואות', 'שווי', 'מוערך', 'ביטחון'] },
-          { id: 'ai-comparable-report', label: 'סטודיו AI השוואות ודוח', icon: ChartLineUp, keywords: ['comparables', 'דוח', 'court', 'bank', 'adjustments', 'KNN', 'AI', 'שומה'] },
-          { id: 'rental-analysis', label: 'ניתוח שכירות', icon: Calculator, keywords: ['שכירות', 'חישוב', 'התאמות', 'השוואה', 'מחיר', 'דמי שכירות', 'נתונים', 'מאגר', 'עסקאות'] },
-          { id: 'gisn-viewer', label: 'מסמכי תב"ע (GISN)', icon: FileText, keywords: ['תב"ע', 'תכנון', 'GISN', 'תיק מידע', 'PDF', 'תל אביב', 'גוש', 'חלקה', 'iView'] },
-          { id: 'gisn-diff', label: 'השוואת תב"ע (GISN)', icon: ArrowsLeftRight, keywords: ['תב"ע', 'השוואה', 'חדש', 'ישן', '6400', 'GISN', 'diff'] },
-          { id: 'gisn-arcgis', label: 'ArcGIS תכניות (TLV)', icon: MapTrifold, keywords: ['ArcGIS', 'TLV', 'query', 'שכבות', 'תכניות', 'גוש', 'חלקה'] },
-          { id: 'gisn-doc-scanner', label: 'סריקת מסמכי GISN', icon: FileText, keywords: ['GISN', 'Docs.aspx', 'PDF', 'סריקה', 'קישורים'] },
-          { id: 'ingestion-helper', label: 'עזר אינדוקס PDF', icon: FileText, keywords: ['אינדקס', 'ingest', 'PDF', 'כלים', 'מקומי'] },
-          { id: 'ocr-helper', label: 'OCR לא מאומת', icon: FileText, keywords: ['OCR', 'טקסט', 'PDF', 'תמונה', 'זיהוי'] },
-          { id: 'data-gov-check', label: 'בדיקת משאב Data.gov.il', icon: FileText, keywords: ['CKAN', 'resource', 'valid', 'data.gov.il'] },
-          { id: 'taba-extractor', label: 'חילוץ הוראות תב"ע', icon: FileText, keywords: ['TABA', 'חילוץ', 'הוראות', 'JSON', 'OCR'] }
-        ]
-      },
-      {
-        title: 'ניהול',
-        items: [
-          { id: 'cases', label: 'ניהול תיקים', icon: FolderOpen, keywords: ['פרויקטים', 'תיקים', 'מעקב', 'סטטוס', 'משימות'] },
-          { id: 'tasks', label: 'משימות', icon: FileText, keywords: ['משימות', 'סטטוס', 'עדיפות', 'מעקב', 'צוות'] },
-          { id: 'income-report', label: 'דוח הכנסות', icon: CurrencyDollar, keywords: ['הכנסות', 'תשלומים', 'חשבוניות', 'כסף', 'עסקי'] },
-          { id: 'standardized', label: 'דוחות תקניים', icon: FileText, keywords: ['תקן', 'רשמי', 'בנק', 'בית משפט', 'דוח', 'מסמכים'] },
-          { id: 'portal', label: 'פורטל לקוחות', icon: UserCircle, keywords: ['לקוח', 'גישה', 'שיתוף', 'צפייה', 'פורטל', 'תקשורת', 'מייל', 'דוחות'] },
-          { id: 'business', label: 'ניהול עסקי', icon: CurrencyDollar, keywords: ['הכנסות', 'הוצאות', 'רווחיות', 'כסף', 'עסק', 'צוות', 'הרשאות'] }
-        ]
-      },
-      {
-        title: 'הגדרות',
-        items: [
-          { id: 'branding', label: 'מיתוג ועיצוב', icon: Palette, keywords: ['עיצוב', 'לוגו', 'צבעים', 'גופנים', 'PDF'] },
-          { id: 'api-settings', label: 'חיבורי נתונים', icon: Key, keywords: ['אימות', 'מפתחות', 'API', 'הגדרות', 'חיבורים', 'iPlan', 'Mavat', 'GovMap', 'ממשלה', 'אבטחה', 'נדל"ן', 'סנכרון', 'ייבוא', 'ממשלתי', 'זכויות בנייה', 'תכנון', 'היתרים'] }
-        ]
-      }
-    ],
-    []
-  )
+  const menuItems = useMemo(() => VIEW_GROUPS.map(group => ({
+    title: group.title,
+    items: group.views.map(id => ({ id, ...VIEW_DEFINITIONS[id] })),
+  })), [])
 
   const filteredMenuItems = useMemo(() => {
     if (!searchQuery.trim()) return menuItems
@@ -214,7 +118,7 @@ export function AppSidebar({ activeView, onNavigate }: AppSidebarProps) {
                           <SidebarMenuItem key={item.id}>
                             <SidebarMenuButton
                               onClick={() => {
-                                onNavigate(item.id as ViewId)
+                                onNavigate(item.id)
                                 setSearchQuery('')
                               }}
                               isActive={isActive}

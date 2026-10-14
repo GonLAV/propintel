@@ -66,8 +66,9 @@ export interface NationalTransactionData {
   renovated?: boolean
   
   verified: boolean
+  verificationLabel: 'government-source' | 'unverified'
   dealType: 'sale' | 'rent'
-  source: 'nadlan' | 'tabu' | 'tax-authority' | 'cbs'
+  source: 'nadlan' | 'data-gov' | 'tabu' | 'tax-authority' | 'cbs'
   
   coordinates?: {
     latitude: number
@@ -242,6 +243,11 @@ class RealIsraeliGovDataAPI {
       log.info('Searching national transactions:', params)
       
       const allTransactions = await this.fetchFromMultipleSources(params)
+      if (allTransactions.length === 0) {
+        throw new Error(
+          'לא התקבלו עסקאות ממקור ממשלתי זמין. לא נוצרו נתוני דמה; ניתן להזין עסקאות ידנית או להגדיר משאב Data.gov.il פעיל.',
+        )
+      }
       
       let filteredTransactions = this.applyFilters(allTransactions, params)
       
@@ -263,7 +269,7 @@ class RealIsraeliGovDataAPI {
       return filteredTransactions
     } catch (error) {
       log.error('Error fetching data:', error)
-      return this.generateComprehensiveFallbackData(params)
+      throw error instanceof Error ? error : new Error('שגיאה בשליפת עסקאות ממשלתיות')
     }
   }
 
@@ -285,10 +291,6 @@ class RealIsraeliGovDataAPI {
       if (result.status === 'fulfilled' && result.value) {
         allTransactions.push(...result.value)
       }
-    }
-    
-    if (allTransactions.length === 0) {
-      return this.generateComprehensiveFallbackData(params)
     }
     
     return this.deduplicateTransactions(allTransactions)
@@ -338,6 +340,8 @@ class RealIsraeliGovDataAPI {
    */
   private async fetchFromDataGovIL(params: NationalSearchParams): Promise<NationalTransactionData[]> {
     try {
+      const resourceId = import.meta.env.VITE_DATA_GOV_NADLAN_RESOURCE_ID?.trim()
+      if (!resourceId) return []
       const url = `${this.apiEndpoints.data_gov}/datastore_search`
       
       const response = await fetch(url, {
@@ -347,7 +351,7 @@ class RealIsraeliGovDataAPI {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          resource_id: 'real-estate-transactions',
+          resource_id: resourceId,
           limit: params.limit || 100
         }),
         signal: AbortSignal.timeout(this.timeout)
@@ -390,191 +394,6 @@ class RealIsraeliGovDataAPI {
       log.warn('CBS API Error:', error)
       return []
     }
-  }
-
-  /**
-   * יצירת נתוני fallback מקיפים מכל רחבי ישראל
-   */
-  private generateComprehensiveFallbackData(params: NationalSearchParams): NationalTransactionData[] {
-    log.info('Generating comprehensive fallback data for all of Israel')
-    
-    const transactions: NationalTransactionData[] = []
-    
-    let citiesToUse = this.ISRAELI_CITIES
-    
-    if (params.cities && params.cities.length > 0) {
-      citiesToUse = this.ISRAELI_CITIES.filter(city => 
-        params.cities!.some(c => 
-          city.nameHe.includes(c) || city.name.toLowerCase().includes(c.toLowerCase())
-        )
-      )
-    }
-    
-    if (params.districts && params.districts.length > 0) {
-      citiesToUse = citiesToUse.filter(city =>
-        params.districts!.some(d =>
-          city.districtHe.includes(d) || city.district.toLowerCase().includes(d.toLowerCase())
-        )
-      )
-    }
-    
-    if (citiesToUse.length === 0) {
-      citiesToUse = this.ISRAELI_CITIES
-    }
-    
-    const transactionsPerCity = Math.max(3, Math.floor(100 / citiesToUse.length))
-    
-    for (const city of citiesToUse) {
-      const cityTransactions = this.generateCityTransactions(city, transactionsPerCity, params)
-      transactions.push(...cityTransactions)
-    }
-    
-    transactions.sort((a, b) => new Date(b.dealDate).getTime() - new Date(a.dealDate).getTime())
-    
-    log.info(`Generated ${transactions.length} transactions from ${citiesToUse.length} cities`)
-    
-    return transactions
-  }
-
-  /**
-   * יצירת עסקאות לעיר ספציפית
-   */
-  private generateCityTransactions(
-    city: IsraeliCity,
-    count: number,
-    params: NationalSearchParams
-  ): NationalTransactionData[] {
-    const transactions: NationalTransactionData[] = []
-    const basePricePerSqm = city.avgPricePerSqm || 18000
-    
-    const propertyTypes = params.propertyTypes && params.propertyTypes.length > 0
-      ? params.propertyTypes
-      : ['דירה', 'משרד', 'דירת גן', 'פנטהאוז', 'דו משפחתי']
-    
-    const streets = this.getStreetsForCity(city.nameHe)
-    
-    for (let i = 0; i < count; i++) {
-      const propertyType = propertyTypes[Math.floor(Math.random() * propertyTypes.length)]
-      const propertyTypeEn = this.translatePropertyType(propertyType)
-      
-      const area = params.minArea && params.maxArea
-        ? params.minArea + Math.random() * (params.maxArea - params.minArea)
-        : 60 + Math.random() * 80
-      
-      const priceVariation = 0.75 + Math.random() * 0.5
-      const pricePerMeter = Math.round(basePricePerSqm * priceVariation)
-      const dealAmount = Math.round(area * pricePerMeter)
-      
-      const daysAgo = Math.floor(Math.random() * 365)
-      const dealDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0]
-      
-      const rooms = params.minRooms && params.maxRooms
-        ? params.minRooms + Math.floor(Math.random() * (params.maxRooms - params.minRooms + 1))
-        : 2 + Math.floor(Math.random() * 4)
-      
-      const hasParking = params.hasParking !== undefined ? params.hasParking : Math.random() > 0.3
-      const hasElevator = params.hasElevator !== undefined ? params.hasElevator : Math.random() > 0.4
-      
-      const latVariation = (Math.random() - 0.5) * 0.05
-      const lngVariation = (Math.random() - 0.5) * 0.05
-      
-      transactions.push({
-        dealId: `IL-${city.code}-${Date.now()}-${i}`,
-        dealDate,
-        dealAmount,
-        pricePerMeter,
-        
-        propertyType: propertyTypeEn,
-        propertyTypeHe: propertyType,
-        rooms,
-        area: Math.round(area),
-        floor: Math.floor(Math.random() * 10),
-        totalFloors: 4 + Math.floor(Math.random() * 8),
-        
-        city: city.name,
-        cityCode: city.code,
-        district: city.district,
-        districtHe: city.districtHe,
-        street: streets[Math.floor(Math.random() * streets.length)],
-        houseNumber: String(Math.floor(Math.random() * 100) + 1),
-        neighborhood: this.getNeighborhoodForCity(city.nameHe),
-        
-        gush: String(10000 + Math.floor(Math.random() * 50000)),
-        helka: String(1 + Math.floor(Math.random() * 500)),
-        
-        buildYear: 1990 + Math.floor(Math.random() * 34),
-        condition: ['חדש', 'משופץ', 'שמור', 'דורש שיפוץ'][Math.floor(Math.random() * 4)],
-        conditionHe: ['חדש', 'משופץ', 'שמור', 'דורש שיפוץ'][Math.floor(Math.random() * 4)],
-        
-        parking: hasParking,
-        elevator: hasElevator,
-        warehouse: Math.random() > 0.6,
-        balcony: Math.random() > 0.5,
-        airDirection: ['צפון', 'דרום', 'מזרח', 'מערב'][Math.floor(Math.random() * 4)],
-        renovated: Math.random() > 0.7,
-        
-        verified: Math.random() > 0.2,
-        dealType: 'sale',
-        source: ['nadlan', 'tabu', 'tax-authority', 'cbs'][Math.floor(Math.random() * 4)] as any,
-        
-        coordinates: {
-          latitude: city.coordinates.latitude + latVariation,
-          longitude: city.coordinates.longitude + lngVariation
-        }
-      })
-    }
-    
-    return transactions
-  }
-
-  /**
-   * רחובות לפי עיר
-   */
-  private getStreetsForCity(_cityHe: string): string[] {
-    const commonStreets = [
-      'רחוב הרצל', 'רחוב ויצמן', 'רחוב בן גוריון', 'רחוב ז\'בוטינסקי',
-      'רחוב רוטשילד', 'רחוב אחד העם', 'רחוב דיזנגוף', 'רחוב בן יהודא',
-      'רחוב ירושלים', 'רחוב תל אביב', 'שדרות ירושלים', 'רחוב הנשיא',
-      'רחוב המלך דוד', 'רחוב סוקולוב', 'רחוב ביאליק'
-    ]
-    
-    return commonStreets
-  }
-
-  /**
-   * שכונה לפי עיר
-   */
-  private getNeighborhoodForCity(cityHe: string): string {
-    const neighborhoods: Record<string, string[]> = {
-      'תל אביב-יפו': ['צפון ישן', 'נווה צדק', 'רמת אביב', 'פלורנטין', 'יפו', 'רמת שרת'],
-      'ירושלים': ['רחביה', 'טלביה', 'בית הכרם', 'קטמון', 'גילה', 'רמות'],
-      'חיפה': ['הדר', 'כרמל צרפתי', 'נווה שאנן', 'רמת אלמוגי'],
-      'באר שבע': ['רמות', 'נווה נוי', 'נווה זאב', 'דרום העיר'],
-      'ראשון לציון': ['מערב העיר', 'שיכון ותיקים', 'נווה ילדים'],
-      'פתח תקווה': ['קריית אריה', 'סגולה', 'עין גנים'],
-    }
-    
-    const cityNeighborhoods = neighborhoods[cityHe] || ['מרכז העיר', 'שכונה צפונית', 'שכונה דרומית']
-    return cityNeighborhoods[Math.floor(Math.random() * cityNeighborhoods.length)]
-  }
-
-  /**
-   * תרגום סוג נכס
-   */
-  private translatePropertyType(hebrewType: string): string {
-    const translations: Record<string, string> = {
-      'דירה': 'apartment',
-      'משרד': 'office',
-      'דירת גן': 'garden-apartment',
-      'פנטהאוז': 'penthouse',
-      'דו משפחתי': 'duplex',
-      'מגרש': 'land',
-      'בית פרטי': 'house',
-      'חנות': 'shop'
-    }
-    return translations[hebrewType] || 'apartment'
   }
 
   /**
@@ -667,9 +486,10 @@ class RealIsraeliGovDataAPI {
    * נרמול נתונים מ-Data.gov.il
    */
   private normalizeDataGovILData(data: any): NationalTransactionData[] {
-    if (!data || !Array.isArray(data.records)) return []
+    const records = data?.result?.records
+    if (!Array.isArray(records)) return []
     
-    return data.records.map((item: any) => this.normalizeTransaction(item, 'tabu'))
+    return records.map((item: any) => this.normalizeTransaction(item, 'data-gov'))
   }
 
   /**
@@ -725,7 +545,10 @@ class RealIsraeliGovDataAPI {
       airDirection: item.air_direction || item.airDirection,
       renovated: item.renovated === true || item.renovated === 1,
       
-      verified: item.verified === true || item.verified === 1 || source === 'tabu',
+      verified: item.verified === true || item.verified === 1 || ['nadlan', 'data-gov', 'cbs'].includes(source),
+      verificationLabel: item.verified === true || item.verified === 1 || ['nadlan', 'data-gov', 'cbs'].includes(source)
+        ? 'government-source'
+        : 'unverified',
       dealType: item.deal_type || item.dealType || 'sale',
       source: source as any,
       

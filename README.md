@@ -42,7 +42,20 @@ npm run dev
 - Ingestion Helper: See current `public/gisn/` index and copy the ingestion command. Open “עזר אינדוקס PDF”, place PDFs under `public/gisn/`, run `npm run ingest:gisn`, then press “רענן סטטוס”.
 - TABA Extraction + PDF Report: Open “חילוץ הוראות תב"ע”. Select an ingested document, run extraction, compute derived metrics, and export a structured PDF via “הפק דוח PDF”.
 - OCR (Unverified): Open “OCR לא מאומת” to OCR images or the first page of a PDF. Outputs JSON labeled as `ocr-unverified`.
-- Data.gov Resource Check: Validate CKAN resource id availability via “בדיקת משאב Data.gov.il”. If retired, update the id in `src/lib/dataGovAPI.ts`.
+- Data.gov Resource Check: Validate the CKAN resource configured with `VITE_DATA_GOV_NADLAN_RESOURCE_ID` via “בדיקת משאב Data.gov.il”.
+
+### Authenticated MVP API access
+
+`AIComparableReportStudioLive` and `IngestionHelper` call the same-origin `/mvp-api` path. During `npm run dev` and `npm run preview`, Vite proxies that path to the root API and injects the bearer credential on the server side.
+
+Configure these **server-only** environment values:
+
+```dotenv
+MVP_API_TARGET=http://localhost:3001
+MVP_API_SERVICE_TOKEN=replace-with-the-root-api-service-token
+```
+
+Do not use a `VITE_` prefix for the service token: `VITE_*` values are embedded in the browser bundle. If either server setting is absent or invalid, `/mvp-api` returns a visible `503 MVP_API_PROXY_NOT_CONFIGURED` error; backend authentication remains required.
 
 Notes:
 - AI calls use Spark (`window.spark.llm`) with strict JSON for extraction. No external facts or hallucinations are allowed.

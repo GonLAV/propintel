@@ -217,7 +217,10 @@ export function TrendReportPreview({ report }: TrendReportPreviewProps) {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ type, percentage }) => `${type} (${percentage.toFixed(0)}%)`}
+                  label={(props) => {
+                    const { type, percentage } = props as unknown as { type: string; percentage: number }
+                    return `${type} (${percentage.toFixed(0)}%)`
+                  }}
                 >
                   {metrics.propertyTypeDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

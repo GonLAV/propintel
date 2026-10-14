@@ -27,7 +27,6 @@ export class APIClientError extends Error {
 
 export interface APIClientConfig {
   baseURL: string
-  apiKey?: string
   timeout?: number
 }
 
@@ -166,22 +165,16 @@ export interface V1IngestionRunResponse {
 
 export class APIClient {
   private baseURL: string
-  private apiKey?: string
   private timeout: number
 
   constructor(config: APIClientConfig) {
     this.baseURL = config.baseURL.replace(/\/+$/, '')
-    this.apiKey = config.apiKey
     this.timeout = config.timeout || 30000
   }
 
   private async fetch(method: string, path: string, body?: unknown): Promise<unknown> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
-    }
-
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`
     }
 
     const controller = new AbortController()
@@ -308,9 +301,7 @@ export class APIClient {
   }
 
   async exportReport(reportId: string, format: 'html' | 'pdf' | 'docx'): Promise<Blob> {
-    const response = await fetch(`${this.baseURL}/api/reports/${reportId}/export?format=${format}`, {
-      headers: this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}
-    })
+    const response = await fetch(`${this.baseURL}/api/reports/${reportId}/export?format=${format}`)
 
     if (!response.ok) throw new Error(`Export failed: HTTP ${response.status}`)
     return await response.blob()
@@ -469,10 +460,9 @@ export class MockAPIClient implements Omit<APIClient, 'fetch'> {
  * Factory to create appropriate client based on environment.
  */
 export function createAPIClient(
-  baseURL: string = getMvpApiBaseUrl(),
-  apiKey?: string
+  baseURL: string = getMvpApiBaseUrl()
 ): APIClient {
-  return new APIClient({ baseURL, apiKey })
+  return new APIClient({ baseURL })
 }
 
 function normalizeErrorPayload(payload: unknown): { message?: string; code?: string; requestId?: string; details?: unknown } {

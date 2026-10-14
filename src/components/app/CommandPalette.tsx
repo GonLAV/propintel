@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback, type KeyboardEvent } from 'react'
 import { MagnifyingGlass, Command, ArrowRight, Lightning, Gear, Robot, NavigationArrow } from '@phosphor-icons/react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { moduleRegistry, type PlatformCommand } from '@/core/moduleRegistry'
 
@@ -108,6 +108,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       <DialogContent
         className="max-w-xl p-0 gap-0 overflow-hidden rounded-2xl border shadow-2xl [&>button[class*='absolute']]:hidden"
       >
+        <DialogTitle className="sr-only">לוח פקודות</DialogTitle>
         {/* ── Search input ────────────────────────────────────────── */}
         <div className="flex items-center border-b px-4 h-14" dir="rtl">
           <MagnifyingGlass size={20} className="text-muted-foreground shrink-0 ml-3" weight="bold" />
@@ -120,7 +121,12 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             }}
             onKeyDown={handleKeyDown}
             placeholder="חפש פקודה, תצוגה, או פעולה..."
-            className="flex-1 bg-transparent border-0 outline-none text-sm h-full placeholder:text-muted-foreground"
+            aria-label="חיפוש פקודות ותצוגות"
+            role="combobox"
+            aria-expanded={isOpen}
+            aria-controls="command-palette-results"
+            aria-activedescendant={flatList[selectedIndex] ? `command-${flatList[selectedIndex].id}` : undefined}
+            className="flex-1 bg-transparent border-0 text-sm h-full placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             autoFocus
           />
           <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-medium text-muted-foreground bg-muted rounded-md border">
@@ -131,6 +137,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         {/* ── Results list ─────────────────────────────────────────── */}
         <div
           ref={listRef}
+          id="command-palette-results"
           className="max-h-80 overflow-y-auto py-2"
           dir="rtl"
           role="listbox"
@@ -159,7 +166,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                     return (
                       <button
                         key={cmd.id}
+                        id={`command-${cmd.id}`}
                         role="option"
+                        aria-selected={isSelected}
                         data-selected={isSelected}
                         onClick={() => executeCommand(cmd)}
                         onMouseEnter={() => setSelectedIndex(globalIdx)}

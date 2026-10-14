@@ -37,12 +37,12 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.softBlue,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: colors.primaryBorder,
   },
   danger: {
     backgroundColor: colors.softRed,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.dangerBorder,
   },
   disabled: {
     opacity: 0.48,
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   label: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '800',
     textAlign: 'center',

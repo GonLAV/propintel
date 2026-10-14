@@ -35,7 +35,7 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           <LinkButton href="/login" variant="ghost">Sign in</LinkButton>
-          <LinkButton href="/register">Start free</LinkButton>
+          <LinkButton href="/login">Administrator access</LinkButton>
         </div>
 
         <button className="grid size-10 place-items-center rounded-full bg-white/10 md:hidden" onClick={() => setOpen((value) => !value)} aria-label="Toggle menu">
@@ -51,7 +51,7 @@ export function SiteHeader() {
             </a>
           ))}
           <LinkButton href="/login" variant="secondary" className="mt-2">Sign in</LinkButton>
-          <LinkButton href="/register">Start free</LinkButton>
+          <LinkButton href="/login">Administrator access only</LinkButton>
         </nav>
       </div>
     </motion.header>

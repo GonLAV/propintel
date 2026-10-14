@@ -31,7 +31,7 @@ const SWAGGER_HTML = `<!doctype html>
   <script>
     window.onload = () => {
       window.ui = SwaggerUIBundle({
-        url: 'docs/openapi.json',
+        url: './openapi.json',
         dom_id: '#ui',
         deepLinking: true,
         presets: [SwaggerUIBundle.presets.apis],

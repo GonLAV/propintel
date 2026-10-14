@@ -28,7 +28,7 @@ describe('metrics middleware', () => {
     expect(out).toBeTruthy();
   });
 
-  test('collapses uuid path segments to :id', () => {
+  test('uses a bounded label for unmatched routes', () => {
     const req = {
       method: 'GET',
       originalUrl: '/api/v1/properties/3fa85f64-5717-4562-b3fc-2c963f66afa6/edit',
@@ -40,6 +40,7 @@ describe('metrics middleware', () => {
     const fakeRes = { setHeader() {}, send: jest.fn() };
     metrics.handler({}, fakeRes);
     const body = fakeRes.send.mock.calls[0][0];
-    expect(body).toContain('/api/v1/properties/:id/edit');
+    expect(body).toContain('route="NOT_FOUND"');
+    expect(body).not.toContain('3fa85f64-5717-4562-b3fc-2c963f66afa6');
   });
 });

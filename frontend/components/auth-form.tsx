@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowRight, Eye, LockKeyhole, Mail, Sparkles, UserRound } from 'lucide-react'
+import { ArrowRight, Eye, LockKeyhole, Mail, Sparkles } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { postJSON } from '@/lib/api-client'
-
-type AuthMode = 'login' | 'register'
+import { getSafeInternalPath } from '@/lib/navigation'
 
 type AuthResponse = {
   user: {
@@ -19,22 +18,20 @@ type AuthResponse = {
   }
 }
 
-export function AuthForm({ mode }: { mode: AuthMode }) {
+export function AuthForm() {
   const router = useRouter()
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-
-  const isRegister = mode === 'register'
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setLoading(true)
 
-    const result = await postJSON<AuthResponse>(`/api/auth/${mode}`, { name, email, password })
+    const result = await postJSON<AuthResponse>('/api/auth/login', { email, password })
 
     setLoading(false)
     if (!result.ok || !result.data) {
@@ -43,7 +40,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     }
 
     const nextPath = new URLSearchParams(window.location.search).get('next')
-    router.push(getSafeInternalPath(nextPath))
+    router.push(getSafeInternalPath(nextPath, window.location.origin))
   }
 
   return (
@@ -57,27 +54,29 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
         <Card className="p-6 sm:p-8">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan">{isRegister ? 'Create workspace' : 'Welcome back'}</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{isRegister ? 'Launch your premium valuation room.' : 'Sign in to your command center.'}</h1>
-            <p className="mt-3 text-sm leading-6 text-white/56">{isRegister ? 'Workspace accounts are provisioned by an administrator.' : 'Sign in with the owner account configured by your administrator.'}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan">Welcome back</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">Sign in to your command center.</h1>
+            <p className="mt-3 text-sm leading-6 text-white/56">Sign in with the owner account configured by your administrator. Public registration is not available.</p>
           </div>
 
           <form className="mt-7 space-y-4" onSubmit={submit}>
-            {isRegister && (
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-white/68">Full name</span>
-                <span className="flex h-12 items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.06] px-4 focus-within:border-cyan/60">
-                  <UserRound className="size-4 text-white/40" />
-                  <input className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/32" value={name} onChange={(event) => setName(event.target.value)} placeholder="Maya Levin" required />
-                </span>
-              </label>
-            )}
-
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-white/68">Email</span>
               <span className="flex h-12 items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.06] px-4 focus-within:border-cyan/60">
                 <Mail className="size-4 text-white/40" />
-                <input className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/32" value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="you@company.com" required />
+                <input
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/32"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  type="email"
+                  name="email"
+                  autoComplete="username"
+                  inputMode="email"
+                  spellCheck="false"
+                  aria-invalid={Boolean(error)}
+                  placeholder="you@company.com"
+                  required
+                />
               </span>
             </label>
 
@@ -85,15 +84,37 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               <span className="mb-2 block text-sm font-medium text-white/68">Password</span>
               <span className="flex h-12 items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.06] px-4 focus-within:border-cyan/60">
                 <LockKeyhole className="size-4 text-white/40" />
-                <input className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/32" value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Minimum 8 characters" required minLength={8} />
-                <Eye className="size-4 text-white/30" />
+                <input
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/32"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  autoComplete="current-password"
+                  spellCheck="false"
+                  aria-invalid={Boolean(error)}
+                  placeholder="Minimum 8 characters"
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="rounded-full p-1 text-white/50 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan/60"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                >
+                  <Eye className="size-4" />
+                </button>
               </span>
             </label>
 
-            {error && <p className="rounded-2xl border border-rose/30 bg-rose/10 px-4 py-3 text-sm text-rose">{error}</p>}
+            <div aria-live="polite" aria-atomic="true">
+              {error && <p role="alert" className="rounded-2xl border border-rose/30 bg-rose/10 px-4 py-3 text-sm text-rose">{error}</p>}
+            </div>
 
             <Button className="h-12 w-full" disabled={loading} type="submit">
-              {loading ? 'Working...' : isRegister ? 'Create account' : 'Sign in'}
+              {loading ? 'Signing in…' : 'Sign in'}
               <ArrowRight className="size-4" />
             </Button>
           </form>
@@ -105,24 +126,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           <LinkButton href="/" variant="secondary">Landing</LinkButton>
-          <LinkButton href="/dashboard" variant="secondary">Dashboard preview</LinkButton>
+          <LinkButton href="/dashboard" variant="secondary">Open dashboard</LinkButton>
         </div>
       </motion.div>
     </main>
   )
-}
-
-function getSafeInternalPath(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
-    return '/dashboard'
-  }
-
-  try {
-    const parsed = new URL(value, window.location.origin)
-    return parsed.origin === window.location.origin
-      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
-      : '/dashboard'
-  } catch {
-    return '/dashboard'
-  }
 }

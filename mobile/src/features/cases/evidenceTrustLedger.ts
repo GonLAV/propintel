@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto'
 import { DiraCase, EvidenceItem } from '@/features/cases/model'
 
 export type EvidenceLedgerEntry = {
@@ -20,12 +21,14 @@ export type EvidenceTrustLedger = {
   shareText: string
 }
 
-export function generateEvidenceTrustLedger(item: DiraCase): EvidenceTrustLedger {
-  const entries = buildLedgerEntries(item.evidence)
+export async function generateEvidenceTrustLedger(item: DiraCase): Promise<EvidenceTrustLedger> {
+  const entries = await buildLedgerEntries(item.evidence)
   const warnings = findLedgerWarnings(item.evidence, entries)
   const trustScore = calculateTrustScore(item.evidence, warnings)
   const tier = trustScore >= 82 ? 'verified' : trustScore >= 58 ? 'review' : 'fragile'
-  const chainId = entries.length ? entries[entries.length - 1].chainProof : createLedgerDigest(`${item.id}:empty`)
+  const chainId = entries.length
+    ? entries[entries.length - 1].chainProof
+    : await createLedgerDigest(`${item.id}:empty`)
   const headline = buildHeadline(tier, entries.length)
 
   return {
@@ -39,16 +42,28 @@ export function generateEvidenceTrustLedger(item: DiraCase): EvidenceTrustLedger
   }
 }
 
-function buildLedgerEntries(evidence: EvidenceItem[]): EvidenceLedgerEntry[] {
-  const orderedEvidence = [...evidence].sort((first, second) => new Date(first.capturedAt).getTime() - new Date(second.capturedAt).getTime())
-  let previousProof = 'ledger-root'
+async function buildLedgerEntries(evidence: EvidenceItem[]): Promise<EvidenceLedgerEntry[]> {
+  const orderedEvidence = [...evidence].sort((first, second) => {
+    const timeDifference = new Date(first.capturedAt).getTime() - new Date(second.capturedAt).getTime()
+    return timeDifference || first.id.localeCompare(second.id)
+  })
+  let previousProof = await createLedgerDigest('dirashield-ledger-root-v1')
+  const entries: EvidenceLedgerEntry[] = []
 
-  return orderedEvidence.map((entry, index) => {
-    const digest = createLedgerDigest(`${entry.id}:${entry.hash}:${entry.capturedAt}:${entry.label}:${entry.type}`)
-    const chainProof = createLedgerDigest(`${previousProof}:${digest}:${index}`)
+  for (const entry of orderedEvidence) {
+    const canonicalEvidence = JSON.stringify({
+      id: entry.id,
+      type: entry.type,
+      label: entry.label,
+      capturedAt: entry.capturedAt,
+      contentSha256: entry.hash,
+      mimeType: entry.mimeType || null,
+      sizeBytes: entry.sizeBytes ?? null,
+    })
+    const digest = await createLedgerDigest(canonicalEvidence)
+    const chainProof = await createLedgerDigest(`${previousProof}:${digest}`)
     previousProof = chainProof
-
-    return {
+    entries.push({
       id: entry.id,
       label: entry.label,
       type: entry.type,
@@ -56,8 +71,10 @@ function buildLedgerEntries(evidence: EvidenceItem[]): EvidenceLedgerEntry[] {
       digest,
       chainProof,
       trustSignals: buildTrustSignals(entry),
-    }
-  })
+    })
+  }
+
+  return entries
 }
 
 function calculateTrustScore(evidence: EvidenceItem[], warnings: string[]) {
@@ -83,7 +100,7 @@ function findLedgerWarnings(evidence: EvidenceItem[], entries: EvidenceLedgerEnt
   if (evidence.length < 3) warnings.push('פחות משלוש ראיות מקשה להציג רצף מלא')
   if (!evidence.some((entry) => entry.type === 'photo')) warnings.push('אין צילום שמראה מצב פיזי')
   if (!evidence.some((entry) => entry.type === 'note' || entry.type === 'document')) warnings.push('אין תיעוד כתוב שמסביר את ההקשר')
-  if (evidence.some((entry) => entry.hashAlgorithm !== 'sha-256')) warnings.push('חלק מהראיות נוצרו כחתימת דמו מקומית ולא כ-SHA-256')
+  if (evidence.some((entry) => entry.hashAlgorithm !== 'sha-256')) warnings.push('חלק מהראיות אינן חתומות ב-SHA-256')
   if (hasTimeCollision(entries)) warnings.push('יש ראיות עם זמן זהה או קרוב מאוד; כדאי לוודא שהסדר ברור')
 
   return warnings
@@ -101,15 +118,13 @@ function hasTimeCollision(entries: EvidenceLedgerEntry[]) {
   return entries.some((entry, index) => {
     const previous = entries[index - 1]
     if (!previous) return false
-    const currentTime = new Date(entry.capturedAt).getTime()
-    const previousTime = new Date(previous.capturedAt).getTime()
-    return Math.abs(currentTime - previousTime) < 1000
+    return Math.abs(new Date(entry.capturedAt).getTime() - new Date(previous.capturedAt).getTime()) < 1000
   })
 }
 
 function buildHeadline(tier: EvidenceTrustLedger['tier'], count: number) {
   if (tier === 'verified') return `שרשרת ראיות חזקה עם ${count} פריטים מסודרים`
-  if (tier === 'review') return `שרשרת ראיות שימושית, אבל כדאי לחזק לפני הסלמה`
+  if (tier === 'review') return 'שרשרת ראיות שימושית, אבל כדאי לחזק לפני הסלמה'
   return 'שרשרת הראיות עדיין חלשה ודורשת השלמה'
 }
 
@@ -140,14 +155,8 @@ function buildShareText(
   ].join('\n')
 }
 
-function createLedgerDigest(input: string) {
-  let hash = 2166136261
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-
-  return `ledger-${(hash >>> 0).toString(16).padStart(8, '0')}`
+async function createLedgerDigest(input: string) {
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input)
 }
 
 function clamp(value: number, min: number, max: number) {

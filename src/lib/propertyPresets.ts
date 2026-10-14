@@ -766,6 +766,9 @@ export function estimatePropertyValue(
   neighborhood?: string,
   _useAverage: boolean = true
 ): { min: number; max: number; avg: number } | null {
+  if (!Number.isFinite(builtArea) || builtArea <= 0) {
+    return null
+  }
   const priceRange = getPriceRangeForProperty(propertyType, city, neighborhood)
   
   if (!priceRange) {

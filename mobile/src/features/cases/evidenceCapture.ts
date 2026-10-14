@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto'
+import { File } from 'expo-file-system'
 import * as ImagePicker from 'expo-image-picker'
 import { createCapturedEvidence, EvidenceItem } from '@/features/cases/model'
 
@@ -40,8 +41,9 @@ export async function pickPhotoEvidence(label: string): Promise<CaptureResult> {
 }
 
 async function evidenceFromAsset(label: string, asset: ImagePicker.ImagePickerAsset): Promise<EvidenceItem> {
-  const hashInput = [asset.uri, asset.fileName, asset.fileSize, asset.width, asset.height, Date.now()].join(':')
-  const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, hashInput)
+  const bytes = await new File(asset.uri).bytes()
+  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes)
+  const hash = toHex(digest)
 
   return createCapturedEvidence({
     label,
@@ -51,4 +53,8 @@ async function evidenceFromAsset(label: string, asset: ImagePicker.ImagePickerAs
     sizeBytes: asset.fileSize,
     hash,
   })
+}
+
+function toHex(value: ArrayBuffer) {
+  return Array.from(new Uint8Array(value), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

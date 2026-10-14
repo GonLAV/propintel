@@ -112,7 +112,7 @@ export function Dashboard({ properties, clients, onSelectProperty, onCreateNew }
               הכלי המקצועי לשמאי מקרקעין — חשב שווי, שלוף עסקאות ממשלתיות, וצור דוחות מקצועיים.
             </p>
             <div className="grid gap-4 sm:grid-cols-3 max-w-xl mx-auto text-right">
-              <button onClick={() => goTo('residential-calculator')} className="group p-5 rounded-xl bg-muted/30 hover:bg-primary/5 border border-border/60 hover:border-primary/30 transition-all text-right">
+              <button onClick={() => goTo('residential-valuation')} className="group p-5 rounded-xl bg-muted/30 hover:bg-primary/5 border border-border/60 hover:border-primary/30 transition-colors text-right">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-3">
                   <Calculator size={20} weight="duotone" />
                 </div>
@@ -285,7 +285,7 @@ export function Dashboard({ properties, clients, onSelectProperty, onCreateNew }
                     >
                       <div className="flex items-center gap-2">
                         <div className="text-[13px] font-mono font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                          {client.properties.length}
+                          {properties.filter(property => property.clientId === client.id).length}
                         </div>
                         <div className="text-[11px] text-muted-foreground">נכסים</div>
                       </div>

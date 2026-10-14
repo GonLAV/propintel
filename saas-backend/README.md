@@ -42,8 +42,8 @@ See `.env.example`. **Required in production:** `DATABASE_URL`, `REDIS_URL`,
 `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY` (64 hex chars), `COOKIE_SECRET`.
 
 ## API
-All endpoints (except `/healthz`, `/readyz`, `/api/v1/auth/*`) require
-`Authorization: Bearer <accessToken>`.
+All endpoints (except `/healthz`, `/readyz`, and public auth flows) require an
+access token in the HTTP Authorization header using the Bearer scheme.
 
 ```
 POST   /api/v1/auth/register            { email, password, fullName, tenantName, tenantSlug }
@@ -73,7 +73,7 @@ GET    /api/v1/valuations/:id
 DELETE /api/v1/valuations/:id           (owner|admin)
 
 GET    /api/v1/reports
-POST   /api/v1/reports                  { valuationId, title, format }
+POST   /api/v1/reports                  { valuationId, title, format: json|markdown }
 GET    /api/v1/reports/:id
 DELETE /api/v1/reports/:id              (owner|admin)
 ```
@@ -121,4 +121,5 @@ For full e2e, run `docker compose up` first and run jest with real env.
 ## Production
 - Build: `docker build -t propintel-api .`
 - Run: `docker compose up --build`
-- Behind a reverse proxy: set `TRUST_PROXY=1`, `COOKIE_SECURE=true`, set strong secrets.
+- Behind a reverse proxy: explicitly set `TRUST_PROXY` to the trusted hop count
+  or proxy IP/CIDR allowlist, set `COOKIE_SECURE=true`, and set strong secrets.

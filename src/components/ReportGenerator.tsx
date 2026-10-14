@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useKV } from '@github/spark/hooks'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,10 +20,12 @@ import {
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import type { Property, Client, Comparable } from '@/lib/types'
+import type { Property, Client, Comparable, Report } from '@/lib/types'
 import { generateReportContent, type ReportAIContent } from '@/services/aiService'
 import { EmailReportDialog, type EmailData } from '@/components/EmailReportDialog'
 import { createLogger } from '@/lib/logger'
+import { createLocalReportBlob, downloadBlob } from '@/lib/reportExport'
+import { uid } from '@/lib/utils'
 
 const log = createLogger('ReportGenerator')
 
@@ -83,6 +86,7 @@ export function ReportGenerator({ property, client, comparables = [] }: ReportGe
     { id: 'legal-disclaimer', title: 'הגבלת אחריות', description: 'תנאים משפטיים', enabled: true, required: true },
     { id: 'appendices', title: 'נספחים', description: 'מסמכים נוספים ונתונים גולמיים', enabled: true }
   ])
+  const [_publishedReports, setPublishedReports] = useKV<Report[]>('client-portal-reports', [])
 
   const toggleSection = (id: string) => {
     setSections((current) =>
@@ -151,24 +155,74 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
 
   const handleGenerateReport = async () => {
     setIsGenerating(true)
-    toast.loading(`מייצר דוח ${reportFormat.toUpperCase()}...`)
-
-    const aiContent = await handleGenerateAIContent()
-
-    setTimeout(() => {
+    try {
+      if (reportFormat === 'word') {
+        toast.error('ייצוא Word אינו נתמך מקומית ללא מחולל DOCX')
+        return
+      }
+      const aiContent = await handleGenerateAIContent()
+      const html = generateReportHTML(aiContent)
+      const extension = reportFormat === 'pdf' ? 'pdf' : 'html'
+      const fileName = `דוח-שמאות-${safeFileSegment(property.address.street)}-${new Date().toISOString().split('T')[0]}.${extension}`
+      downloadBlob(
+        await createLocalReportBlob(reportFormat, html, `דוח שמאות — ${property.address.street}`),
+        fileName,
+      )
+      toast.success(`דוח ${reportFormat.toUpperCase()} נוצר והורד`)
+    } catch (error) {
+      log.error('Report export failed:', error)
+      toast.error(error instanceof Error ? error.message : 'ייצוא הדוח נכשל')
+    } finally {
       setIsGenerating(false)
-      toast.success(`דוח ${reportFormat.toUpperCase()} נוצר בהצלחה!`)
-      
-      const blob = new Blob([generateReportHTML(aiContent)], { type: 'text/html;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `דוח-שמאות-${safeFileSegment(property.address.street)}-${new Date().toISOString().split('T')[0]}.html`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    }, 2000)
+    }
+  }
+
+  const handlePublishReport = async () => {
+    if (!client) {
+      toast.error('יש לקשר לקוח לנכס לפני פרסום דוח')
+      return
+    }
+    if (reportFormat === 'word') {
+      toast.error('לא ניתן לפרסם Word מקומית ללא מחולל DOCX')
+      return
+    }
+    setIsGenerating(true)
+    try {
+      const aiContent = await handleGenerateAIContent()
+      const html = generateReportHTML(aiContent)
+      const extension = reportFormat === 'pdf' ? 'pdf' : 'html'
+      const published: Report = {
+        id: uid('report'),
+        propertyId: property.id,
+        clientId: client.id,
+        title: `דוח שמאות — ${property.address.street}`,
+        format: reportFormat,
+        template: reportTemplate,
+        status: 'completed',
+        sections: sections.map((section, index) => ({
+          id: section.id,
+          title: section.title,
+          content: section.enabled ? section.description : '',
+          type: 'text',
+          order: index,
+          required: Boolean(section.required),
+          enabled: section.enabled,
+        })),
+        appraiserName,
+        appraiserLicense,
+        generatedAt: new Date().toISOString(),
+        watermark: includeWatermark,
+        contentHtml: html,
+        fileName: `דוח-שמאות-${safeFileSegment(property.address.street)}.${extension}`,
+      }
+      setPublishedReports(current => [published, ...(current || [])])
+      toast.success('הדוח פורסם מקומית וזמין בניהול הדוחות')
+    } catch (error) {
+      log.error('Report publishing failed:', error)
+      toast.error('פרסום הדוח נכשל')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const generateReportHTML = (aiContent: ReportAIContent | null) => {
@@ -247,7 +301,7 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
   <div class="info-grid">
     <div class="info-item"><span class="info-label">טווח שווי:</span> ₪${property.valuationData.valueRange.min.toLocaleString()} - ₪${property.valuationData.valueRange.max.toLocaleString()}</div>
     <div class="info-item"><span class="info-label">ביטחון:</span> ${property.valuationData.confidence}%</div>
-    <div class="info-item"><span class="info-label">מחיר למ״ר:</span> ₪${Math.round(property.valuationData.estimatedValue / property.details.builtArea).toLocaleString()}</div>
+    <div class="info-item"><span class="info-label">מחיר למ״ר:</span> ${property.details.builtArea > 0 ? `₪${Math.round(property.valuationData.estimatedValue / property.details.builtArea).toLocaleString()}` : 'לא זמין — חסר שטח חיובי'}</div>
     <div class="info-item"><span class="info-label">שיטה:</span> ${escapeHtml(property.valuationData.method)}</div>
   </div>
   ` : ''}
@@ -318,12 +372,8 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
   const totalCount = sections.length
 
   const handleSendEmail = async (emailData: EmailData) => {
-    toast.loading('שולח דוח באימייל...')
-
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    log.info('Email sent:', emailData)
-    toast.success(`הדוח נשלח ל-${emailData.to.join(', ')}`)
+    log.info('Email delivery requested but unavailable:', emailData)
+    toast.error('שליחת אימייל אינה זמינה בדפדפן. נדרש שירות דואר מאומת בצד השרת.')
   }
 
   const recipientSuggestions = client?.email ? [client.email] : []
@@ -343,9 +393,19 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
                 {isGenerating ? 'מייצר דוח...' : 'ייצא דוח'}
               </Button>
               <Button
+                variant="outline"
+                onClick={handlePublishReport}
+                disabled={isGenerating || reportFormat === 'word'}
+                className="gap-2"
+              >
+                <FileText size={18} />
+                פרסם מקומית
+              </Button>
+              <Button
                 variant="secondary"
                 onClick={() => setShowEmailDialog(true)}
-                disabled={isGenerating}
+                disabled
+                title="נדרש שירות דואר מאומת בצד השרת"
                 className="gap-2"
               >
                 <PaperPlaneTilt size={18} weight="fill" />
@@ -379,10 +439,10 @@ ${comparables.map(c => `- ${c.address}: ₪${c.salePrice.toLocaleString()} (מו
                       PDF
                     </div>
                   </SelectItem>
-                  <SelectItem value="word">
+                  <SelectItem value="word" disabled>
                     <div className="flex items-center gap-2">
                       <FileDoc size={16} weight="fill" />
-                      Word (DOCX)
+                      Word (DOCX) — דורש שירות יצירה צד-שרת
                     </div>
                   </SelectItem>
                   <SelectItem value="html">

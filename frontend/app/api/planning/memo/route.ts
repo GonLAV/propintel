@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { apiError, createRequestContext, jsonResponse, rateLimit, readJSON, sanitizeText } from '@/lib/api-server'
+import { authenticateRequest } from '@/lib/auth'
 import { buildPlanningMemo } from '@/lib/planning-database'
 
 const schema = z.object({
@@ -9,7 +10,15 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const context = createRequestContext(request)
-  const limited = rateLimit(context, 'planning:memo', { limit: 20, windowMs: 60_000 })
+  const user = await authenticateRequest(request)
+  if (!user) {
+    return apiError(context, 'Not authenticated', 401, 'not_authenticated')
+  }
+  const limited = rateLimit(context, 'planning:memo', {
+    limit: 20,
+    windowMs: 60_000,
+    identity: user.id,
+  })
   if (limited) return limited
 
   const parsed = schema.safeParse(await readJSON(request))

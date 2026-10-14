@@ -12,11 +12,11 @@ npm run start
 
 ## MVP Flow
 
-1. Login with Israeli phone number.
+1. Request and verify a server-issued OTP for an Israeli phone number.
 2. Tap `פתיחת תיק`.
 3. Choose category, enter address/contact, create case.
 4. Share formal Hebrew letter with signed evidence summary.
-5. Add camera or gallery evidence to a case; each item receives local SHA-256 metadata fingerprinting.
+5. Add camera or gallery evidence to a case; the selected file bytes receive a local SHA-256 digest.
 6. Review `Resolution Autopilot` for readiness score, evidence gaps, and the next recommended settlement move.
 7. Review `Evidence Trust Ledger` for a chained evidence timeline, trust score, metadata warnings, and shareable proof summary.
 
@@ -24,8 +24,12 @@ npm run start
 
 ```bash
 npm run typecheck
+npm test
+npx expo install --check
 npm audit --audit-level=moderate
 ```
+
+Authentication fails closed when the configured OTP API is unavailable or returns no access token.
 
 ## Docs
 

@@ -20,7 +20,9 @@ function parseTtlMs(ttl) {
   return n * { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2]];
 }
 
-async function issueRefreshToken({ userId, tenantId, familyId, ip, userAgent }) {
+async function issueRefreshToken({
+  userId, tenantId, familyId, ip, userAgent,
+}, client = null) {
   const token = randomToken(48);
   const id = randomUUID();
   await refreshRepo.insert({
@@ -32,7 +34,7 @@ async function issueRefreshToken({ userId, tenantId, familyId, ip, userAgent }) 
     expiresAt: new Date(Date.now() + parseTtlMs(config.jwt.refreshTtl)),
     ip: ip || null,
     userAgent: userAgent || null,
-  });
+  }, client);
   return { token, id, familyId: familyId || id };
 }
 
@@ -49,7 +51,7 @@ async function register({ email, password, fullName, tenantName, tenantSlug, ip,
     const accessToken = signAccessToken({ sub: user.id, tenantId: tenant.id, role: user.role });
     const { token: refreshToken } = await issueRefreshToken({
       userId: user.id, tenantId: tenant.id, ip, userAgent,
-    });
+    }, client);
     return { user, tenant, accessToken, refreshToken };
   });
 }
@@ -58,8 +60,9 @@ async function login({ email, password, tenantSlug, ip, userAgent }) {
   let userRow = null;
   if (tenantSlug) {
     const tenant = await tenantsRepo.findBySlug(tenantSlug);
-    if (!tenant) throw Unauthorized('Invalid credentials');
+    if (!tenant || tenant.status !== 'active') throw Unauthorized('Invalid credentials');
     userRow = await usersRepo.findByEmail(tenant.id, email);
+    if (userRow) userRow.tenant_status = tenant.status;
   } else {
     const matches = await usersRepo.findByEmailGlobal(email);
     if (matches.length > 1) {
@@ -69,6 +72,7 @@ async function login({ email, password, tenantSlug, ip, userAgent }) {
   }
   if (!userRow || !userRow.password_hash) throw Unauthorized('Invalid credentials');
   if (userRow.status !== 'active') throw Unauthorized('Account disabled');
+  if (userRow.tenant_status !== 'active') throw Unauthorized('Tenant is not active');
 
   const ok = await bcrypt.compare(password, userRow.password_hash);
   if (!ok) throw Unauthorized('Invalid credentials');
@@ -90,28 +94,43 @@ async function login({ email, password, tenantSlug, ip, userAgent }) {
 
 async function refresh({ refreshToken, ip, userAgent }) {
   const hash = sha256(refreshToken);
-  const row = await refreshRepo.findByHash(hash);
-  if (!row) throw Unauthorized('Invalid refresh token');
+  const outcome = await withTransaction(async (client) => {
+    const row = await refreshRepo.findByHash(hash, client, { forUpdate: true });
+    if (!row) return { error: Unauthorized('Invalid refresh token') };
 
-  if (row.revoked_at) {
-    // Reuse of a revoked token: revoke entire family (likely theft).
-    await refreshRepo.revokeFamily(row.family_id);
-    throw Unauthorized('Refresh token reuse detected');
-  }
-  if (new Date(row.expires_at).getTime() < Date.now()) {
-    throw Unauthorized('Refresh token expired');
-  }
+    if (row.revoked_at) {
+      // This must commit even though the request is rejected.
+      await refreshRepo.revokeFamily(row.family_id, client);
+      return { error: Unauthorized('Refresh token reuse detected') };
+    }
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      return { error: Unauthorized('Refresh token expired') };
+    }
 
-  const issued = await issueRefreshToken({
-    userId: row.user_id, tenantId: row.tenant_id, familyId: row.family_id, ip, userAgent,
+    const user = await usersRepo.findAuthState(row.tenant_id, row.user_id, client);
+    if (!user || user.status !== 'active') {
+      return { error: Unauthorized('User not active') };
+    }
+    if (user.tenant_status !== 'active') {
+      return { error: Unauthorized('Tenant is not active') };
+    }
+
+    const issued = await issueRefreshToken({
+      userId: row.user_id, tenantId: row.tenant_id, familyId: row.family_id, ip, userAgent,
+    }, client);
+    const revoked = await refreshRepo.revokeById(row.id, issued.id, client);
+    if (!revoked) {
+      await refreshRepo.revokeFamily(row.family_id, client);
+      return { error: Unauthorized('Refresh token reuse detected') };
+    }
+
+    const accessToken = signAccessToken({
+      sub: user.id, tenantId: user.tenant_id, role: user.role,
+    });
+    return { accessToken, refreshToken: issued.token };
   });
-  await refreshRepo.revokeById(row.id, issued.id);
-
-  const user = await usersRepo.findById(row.tenant_id, row.user_id);
-  if (!user || user.status !== 'active') throw Unauthorized('User not active');
-
-  const accessToken = signAccessToken({ sub: user.id, tenantId: user.tenant_id, role: user.role });
-  return { accessToken, refreshToken: issued.token };
+  if (outcome.error) throw outcome.error;
+  return outcome;
 }
 
 async function logout({ refreshToken }) {

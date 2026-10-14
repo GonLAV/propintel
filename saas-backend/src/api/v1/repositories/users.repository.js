@@ -4,6 +4,7 @@ const { query } = require('../../../config/database');
 
 const SAFE = `id, tenant_id, email, full_name, role, status, last_login_at,
               created_at, updated_at`;
+const execute = (client, text, params) => (client ? client.query(text, params) : query(text, params));
 
 async function findByEmail(tenantId, email) {
   const { rows } = await query(
@@ -19,7 +20,7 @@ async function findByEmail(tenantId, email) {
 async function findByEmailGlobal(email) {
   const { rows } = await query(
     `SELECT u.id, u.tenant_id, u.email, u.password_hash, u.role, u.status,
-            t.slug AS tenant_slug
+            t.slug AS tenant_slug, t.status AS tenant_status
        FROM users u
        JOIN tenants t ON t.id = u.tenant_id AND t.deleted_at IS NULL
       WHERE u.email = $1 AND u.deleted_at IS NULL`,
@@ -28,10 +29,24 @@ async function findByEmailGlobal(email) {
   return rows;
 }
 
-async function findById(tenantId, id) {
-  const { rows } = await query(
+async function findById(tenantId, id, client = null, { forUpdate = false } = {}) {
+  const { rows } = await execute(
+    client,
     `SELECT ${SAFE} FROM users
-      WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+      WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL${forUpdate ? ' FOR UPDATE' : ''}`,
+    [tenantId, id],
+  );
+  return rows[0] || null;
+}
+
+async function findAuthState(tenantId, id, client = null) {
+  const { rows } = await execute(
+    client,
+    `SELECT u.id, u.tenant_id, u.role, u.status, t.status AS tenant_status
+       FROM users u
+       JOIN tenants t ON t.id = u.tenant_id AND t.deleted_at IS NULL
+      WHERE u.tenant_id = $1 AND u.id = $2 AND u.deleted_at IS NULL
+      LIMIT 1`,
     [tenantId, id],
   );
   return rows[0] || null;
@@ -74,15 +89,16 @@ async function list(tenantId, { q, role, limit, offset }) {
   return { rows: rows.map(({ total_count, ...r }) => r), total };
 }
 
-async function update(tenantId, id, fields) {
+async function update(tenantId, id, fields, client = null) {
   const sets = [];
   const params = [tenantId, id];
   Object.entries(fields).forEach(([col, val]) => {
     params.push(val);
     sets.push(`${col} = $${params.length}`);
   });
-  if (!sets.length) return findById(tenantId, id);
-  const { rows } = await query(
+  if (!sets.length) return findById(tenantId, id, client);
+  const { rows } = await execute(
+    client,
     `UPDATE users SET ${sets.join(', ')}
        WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
    RETURNING ${SAFE}`,
@@ -91,8 +107,9 @@ async function update(tenantId, id, fields) {
   return rows[0] || null;
 }
 
-async function softDelete(tenantId, id) {
-  const { rowCount } = await query(
+async function softDelete(tenantId, id, client = null) {
+  const { rowCount } = await execute(
+    client,
     `UPDATE users
         SET deleted_at = now(), status = 'disabled'
       WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
@@ -105,6 +122,21 @@ async function setLastLogin(id) {
   await query('UPDATE users SET last_login_at = now() WHERE id = $1', [id]);
 }
 
+async function countActiveOwners(tenantId, client = null) {
+  const { rows } = await execute(
+    client,
+    `SELECT COUNT(*)::int AS count
+       FROM users
+      WHERE tenant_id = $1
+        AND role = 'owner'
+        AND status = 'active'
+        AND deleted_at IS NULL`,
+    [tenantId],
+  );
+  return Number(rows[0].count);
+}
+
 module.exports = {
-  findByEmail, findByEmailGlobal, findById, create, list, update, softDelete, setLastLogin,
+  findByEmail, findByEmailGlobal, findById, findAuthState,
+  create, list, update, softDelete, setLastLogin, countActiveOwners,
 };

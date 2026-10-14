@@ -62,7 +62,7 @@ export function PlanningMemoPanel({ memo, memoLoading, memoStatus, onGenerate, o
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.035] p-5 text-sm leading-6 text-white/48">
-            Generate a memo after reviewing the rights delta. The memo is produced from the same starter planning dataset and keeps verification warnings visible.
+            Generate a memo after reviewing the rights delta. The memo is produced from the same built-in demo fixture dataset and keeps verification warnings visible.
           </div>
         )}
       </div>

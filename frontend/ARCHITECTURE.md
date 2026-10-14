@@ -2,7 +2,7 @@
 
 ## Goals
 
-The premium frontend is a production-oriented Next.js application that can coexist with the root Spark prototype while workflows are migrated. The code is organized around clear boundaries: app routes, feature components, reusable UI primitives, domain services, and server-only API utilities.
+The premium frontend is a production-oriented Next.js application shell with standalone demo data that can coexist with the root Spark prototype while workflows are migrated. The code is organized around clear boundaries: app routes, feature components, reusable UI primitives, domain services, and server-only API utilities.
 
 ## Layers
 
@@ -41,7 +41,8 @@ Routes should validate every request body with Zod before calling domain service
 - The browser does not persist JWTs in `localStorage` or `sessionStorage`.
 - `JWT_SECRET` is required in production and must be at least 32 characters.
 - Dashboard routes are protected by `proxy.ts` using the same issuer, audience, and cookie constants as API auth.
-- Registration/login remain mock flows until the production SaaS backend becomes canonical.
+- Public registration is disabled. Login uses one administrator-configured owner account until a production identity backend becomes canonical.
+- Decision APIs require the same configured session as dashboard pages.
 
 ## Browser Security
 

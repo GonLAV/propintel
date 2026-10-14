@@ -176,14 +176,31 @@ function incomeApproachValuation({ subject, inputs = {} }) {
   if (!subject.area_sqm) {
     return { value: null, confidence: 0, breakdown: { reason: 'area_sqm required' } };
   }
-  const rentPerSqmMonth = Number(inputs.rentPerSqmMonth)
-    || DEFAULT_RENT_PER_SQM_MONTH[subject.property_type]
-    || DEFAULT_RENT_PER_SQM_MONTH.other;
-  const vacancyRate = Number.isFinite(inputs.vacancyRate) ? Number(inputs.vacancyRate) : 0.05;
-  const opexRatio = Number.isFinite(inputs.opexRatio) ? Number(inputs.opexRatio) : 0.20;
-  const capRate = Number(inputs.capRate)
-    || DEFAULT_CAP_RATES[subject.property_type]
-    || DEFAULT_CAP_RATES.other;
+  const providedRent = inputs.rentPerSqmMonth !== undefined;
+  const providedCapRate = inputs.capRate !== undefined;
+  const providedVacancy = inputs.vacancyRate !== undefined;
+  const providedOpex = inputs.opexRatio !== undefined;
+  const rentPerSqmMonth = providedRent
+    ? Number(inputs.rentPerSqmMonth)
+    : DEFAULT_RENT_PER_SQM_MONTH[subject.property_type] || DEFAULT_RENT_PER_SQM_MONTH.other;
+  const vacancyRate = providedVacancy ? Number(inputs.vacancyRate) : 0.05;
+  const opexRatio = providedOpex ? Number(inputs.opexRatio) : 0.20;
+  const capRate = providedCapRate
+    ? Number(inputs.capRate)
+    : DEFAULT_CAP_RATES[subject.property_type] || DEFAULT_CAP_RATES.other;
+
+  if (!Number.isFinite(rentPerSqmMonth) || rentPerSqmMonth <= 0) {
+    throw new RangeError('rentPerSqmMonth must be a positive number');
+  }
+  if (!Number.isFinite(capRate) || capRate <= 0 || capRate > 1) {
+    throw new RangeError('capRate must be greater than 0 and at most 1');
+  }
+  if (!Number.isFinite(vacancyRate) || vacancyRate < 0 || vacancyRate >= 1) {
+    throw new RangeError('vacancyRate must be at least 0 and less than 1');
+  }
+  if (!Number.isFinite(opexRatio) || opexRatio < 0 || opexRatio >= 1) {
+    throw new RangeError('opexRatio must be at least 0 and less than 1');
+  }
 
   const gpi = Number(subject.area_sqm) * rentPerSqmMonth * 12;
   const egi = gpi * (1 - vacancyRate);
@@ -191,7 +208,7 @@ function incomeApproachValuation({ subject, inputs = {} }) {
   const value = ROUND(noi / capRate);
 
   // Income confidence depends on whether tenant supplied real inputs.
-  const usedRealInputs = Boolean(inputs.rentPerSqmMonth || inputs.capRate);
+  const usedRealInputs = providedRent || providedCapRate;
   const confidence = usedRealInputs ? 0.75 : 0.55;
 
   return {

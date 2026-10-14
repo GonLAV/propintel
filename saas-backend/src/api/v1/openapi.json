@@ -3,7 +3,7 @@
   "info": {
     "title": "PropIntel API",
     "version": "1.0.0",
-    "description": "Multi-tenant property appraisal SaaS. All authenticated endpoints require `Authorization: Bearer <accessToken>`. Tenant scope is derived from the JWT — never pass `tenantId` in path or body."
+    "description": "Multi-tenant property appraisal SaaS. Authenticated endpoints require an access token using the HTTP Bearer scheme. Tenant scope is derived from the JWT; never pass tenantId in path or body."
   },
   "servers": [
     { "url": "/api/v1" }
@@ -192,6 +192,25 @@
         "responses": { "200": { "description": "OK" }, "401": { "description": "Invalid / expired token" } }
       }
     },
+    "/auth/oauth/google": {
+      "get": {
+        "tags": ["OAuth"], "security": [],
+        "summary": "Start Google OAuth when configured.",
+        "responses": {
+          "302": { "description": "Redirect to Google authorization." },
+          "501": { "description": "Google OAuth is not configured." }
+        }
+      }
+    },
+    "/auth/oauth/google/callback": {
+      "get": {
+        "tags": ["OAuth"], "security": [],
+        "summary": "Google OAuth callback placeholder.",
+        "responses": {
+          "501": { "description": "OAuth code exchange is not implemented." }
+        }
+      }
+    },
 
     "/tenants/me": {
       "get": { "tags": ["Tenant"], "summary": "Get current tenant.", "responses": { "200": { "description": "OK" } } },
@@ -225,6 +244,30 @@
       }
     },
     "/users/{id}": {
+      "get": {
+        "tags": ["Users"], "summary": "Get a user in the current tenant.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "404": { "description": "User not found." }
+        }
+      },
+      "patch": {
+        "tags": ["Users"], "summary": "Update a user's profile or status (owner/admin only).",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "fullName": { "type": "string" },
+              "status": { "type": "string", "enum": ["active", "disabled", "pending"] },
+              "phone": { "type": "string" }
+            }
+          } } }
+        },
+        "responses": { "200": { "description": "OK" }, "403": { "description": "Forbidden" } }
+      },
       "delete": {
         "tags": ["Users"], "summary": "Soft-delete a user (owner/admin only).",
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
@@ -306,7 +349,7 @@
           "content": { "application/json": { "schema": { "type": "object", "required": ["valuationId", "title", "format"], "properties": {
             "valuationId": { "type": "string" },
             "title":       { "type": "string" },
-            "format":      { "type": "string", "enum": ["json", "markdown", "pdf"] }
+            "format":      { "type": "string", "enum": ["json", "markdown"] }
           } } } } },
         "responses": { "201": { "description": "Created" } }
       }

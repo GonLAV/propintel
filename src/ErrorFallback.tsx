@@ -4,6 +4,7 @@ import { Button } from './components/ui/button'
 import { Warning, ArrowCounterClockwise } from '@phosphor-icons/react'
 
 export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  const message = error instanceof Error ? error.message : String(error)
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-md">
@@ -18,7 +19,7 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
         <div className="bg-card border rounded-xl p-4 mb-6">
           <h3 className="font-semibold text-sm text-muted-foreground mb-2">פרטי שגיאה:</h3>
           <pre className="text-xs text-destructive bg-muted/50 p-3 rounded-lg border overflow-auto max-h-32 font-mono" dir="ltr">
-            {error.message}
+            {message}
           </pre>
         </div>
 

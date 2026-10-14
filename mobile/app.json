@@ -6,7 +6,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.propintel.dirashield",
@@ -17,13 +19,20 @@
     },
     "android": {
       "package": "com.propintel.dirashield",
-      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"],
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0B1220"
       }
     },
     "extra": {
       "apiBaseUrl": "https://api.dirashield.co.il/v1"
-    }
+    },
+    "plugins": [
+      "expo-localization",
+      "expo-secure-store"
+    ]
   }
 }

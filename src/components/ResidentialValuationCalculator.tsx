@@ -192,7 +192,7 @@ export function ResidentialValuationCalculator() {
         maxArea: property.area ? property.area * 1.2 : 120,
         fromDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         toDate: new Date().toISOString().split('T')[0],
-        verifiedOnly: false,
+        verifiedOnly: true,
         limit: 50
       }
 
@@ -325,9 +325,9 @@ export function ResidentialValuationCalculator() {
             <p className="text-[15px] text-muted-foreground mt-0.5">חישוב שווי מקצועי לנכסי מגורים</p>
           </div>
         </div>
-        <Badge className="bg-emerald-500/10 text-emerald-700 gap-1.5">
+        <Badge variant="outline" className="gap-1.5">
           <CheckCircle size={14} weight="fill" />
-          מחובר למאגר נדל״ן ממשלתי
+          שליפה ממשלתית לפי דרישה — ללא נתוני דמה
         </Badge>
       </div>
 

@@ -7,7 +7,7 @@ const idParam = z.object({ id: z.string().uuid() }).strict();
 const create = z.object({
   valuationId: z.string().uuid(),
   title: z.string().min(2).max(255),
-  format: z.enum(['json', 'markdown', 'pdf']).default('json'),
+  format: z.enum(['json', 'markdown']).default('json'),
 }).strict();
 
 const list = z.object({

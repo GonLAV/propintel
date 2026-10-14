@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native'
 import { colors, radius } from '@/theme/tokens'
 
@@ -7,16 +8,28 @@ type TextFieldProps = TextInputProps & {
 }
 
 export function TextField({ label, error, style, ...props }: TextFieldProps) {
+  const id = useId()
+  const errorId = `${id}-error`
+
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
+      <Text nativeID={`${id}-label`} style={styles.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
+        accessibilityHint={error}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={error ? errorId : undefined}
+        aria-invalid={Boolean(error)}
         textAlign="right"
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={colors.placeholder}
         style={[styles.input, error && styles.inputError, style]}
         {...props}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text nativeID={errorId} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -36,7 +49,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     color: colors.ink,
     paddingHorizontal: 16,
     fontSize: 16,

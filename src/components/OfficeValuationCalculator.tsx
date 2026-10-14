@@ -71,50 +71,7 @@ export function OfficeValuationCalculator() {
     currentUse: 'owner-occupied'
   })
 
-  const [comparables, setComparables] = useState<Partial<OfficeComparable>[]>([
-    {
-      id: '1',
-      address: 'רחוב הארבעה 7, תל אביב',
-      salePrice: 2500000,
-      pricePerSqm: 25000,
-      saleDate: '2024-10-15',
-      area: 100,
-      floor: 4,
-      condition: 'excellent',
-      officeClass: 'B',
-      parkingSpaces: 1,
-      buildYear: 2016,
-      distance: 300
-    },
-    {
-      id: '2',
-      address: 'דרך מנחם בגין 23, תל אביב',
-      salePrice: 3000000,
-      pricePerSqm: 30000,
-      saleDate: '2024-09-20',
-      area: 100,
-      floor: 8,
-      condition: 'excellent',
-      officeClass: 'A',
-      parkingSpaces: 2,
-      buildYear: 2020,
-      distance: 800
-    },
-    {
-      id: '3',
-      address: 'רחוב קפלן 6, תל אביב',
-      salePrice: 2200000,
-      pricePerSqm: 22000,
-      saleDate: '2024-08-10',
-      area: 100,
-      floor: 2,
-      condition: 'good',
-      officeClass: 'B',
-      parkingSpaces: 1,
-      buildYear: 2010,
-      distance: 500
-    }
-  ])
+  const [comparables, setComparables] = useState<Partial<OfficeComparable>[]>([])
 
   const [result, setResult] = useState<OfficeValuationResult | null>(null)
   const [calculationMethod, setCalculationMethod] = useState<'comparable-sales' | 'income-approach' | 'cost-approach'>('comparable-sales')
@@ -138,7 +95,7 @@ export function OfficeValuationCalculator() {
         maxArea: property.totalArea ? property.totalArea * 1.3 : 200,
         fromDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         toDate: new Date().toISOString().split('T')[0],
-        verifiedOnly: false,
+        verifiedOnly: true,
         limit: 50
       }
 
@@ -279,25 +236,25 @@ export function OfficeValuationCalculator() {
         <div className="flex gap-3">
           <Info className="w-6 h-6 text-accent shrink-0 mt-0.5" weight="duotone" />
           <div className="space-y-2">
-            <h3 className="font-bold text-accent text-lg">✅ חיבור למאגר נדל"ן ממשלתי</h3>
+            <h3 className="font-bold text-accent text-lg">שליפה ממקור ממשלתי לפי דרישה</h3>
             <div className="text-sm space-y-2 text-foreground">
               <p className="font-semibold">
-                🟢 <strong>המערכת מחוברת למאגר נדל"ן הממשלתי (nadlan.gov.il)</strong>
+                <strong>המערכת אינה יוצרת עסקאות ממשלתיות חלופיות.</strong>
               </p>
               <div className="bg-background/60 p-3 rounded-lg space-y-1">
                 <p>📊 <strong>עסקאות אמיתיות:</strong></p>
                 <p className="mr-6 text-muted-foreground">
-                  לחץ על כפתור <strong className="text-accent">"שלוף מנדל"ן"</strong> בטאב "עסקאות השוואה" 
-                  כדי לשלוף עסקאות משרדים אמיתיות מהמאגר הממשלתי.
+                  לחץ על כפתור <strong className="text-accent">"שלוף מנדל"ן"</strong> בטאב "עסקאות השוואה"
+                  כדי לנסות שליפה ממקור ממשלתי שהוגדר.
                 </p>
                 <p className="mr-6 text-muted-foreground">
                   המערכת תחפש עסקאות דומות לפי: עיר, רחוב, טווח שטח, ותקופה (12 חודשים אחרונים).
                 </p>
               </div>
               <div className="bg-background/60 p-3 rounded-lg space-y-1">
-                <p>🔄 <strong>מנגנון Fallback:</strong></p>
+                <p><strong>כשל בשליפה:</strong></p>
                 <p className="mr-6 text-muted-foreground">
-                  אם השרת הממשלתי לא זמין או אין עסקאות תואמות, ניתן להזין עסקאות ידנית.
+                  מוצגת שגיאה גלויה ולא נוצרים נתוני דמה. ניתן להזין עסקאות ידנית ולסמן את מקורן.
                 </p>
               </div>
               <div className="bg-warning/20 p-3 rounded-lg border border-warning/40 mt-3">
@@ -362,8 +319,9 @@ export function OfficeValuationCalculator() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>כתובת</Label>
+                  <Label htmlFor="office-address">כתובת</Label>
                   <Input
+                    id="office-address"
                     value={property.address}
                     onChange={(e) => setProperty({ ...property, address: e.target.value })}
                     placeholder="רחוב ומספר"
@@ -393,24 +351,27 @@ export function OfficeValuationCalculator() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>שטח (מ"ר)</Label>
+                  <Label htmlFor="office-area">שטח (מ"ר)</Label>
                   <Input
+                    id="office-area"
                     type="number"
                     value={property.totalArea}
                     onChange={(e) => setProperty({ ...property, totalArea: Number(e.target.value) })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>קומה</Label>
+                  <Label htmlFor="office-floor">קומה</Label>
                   <Input
+                    id="office-floor"
                     type="number"
                     value={property.floor}
                     onChange={(e) => setProperty({ ...property, floor: Number(e.target.value) })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>סה"כ קומות</Label>
+                  <Label htmlFor="office-total-floors">סה"כ קומות</Label>
                   <Input
+                    id="office-total-floors"
                     type="number"
                     value={property.totalFloors}
                     onChange={(e) => setProperty({ ...property, totalFloors: Number(e.target.value) })}
@@ -454,8 +415,9 @@ export function OfficeValuationCalculator() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>שנת בנייה</Label>
+                  <Label htmlFor="office-build-year">שנת בנייה</Label>
                   <Input
+                    id="office-build-year"
                     type="number"
                     value={property.buildYear}
                     onChange={(e) => setProperty({ ...property, buildYear: Number(e.target.value) })}

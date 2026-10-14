@@ -39,4 +39,17 @@ async function updateName(id, name) {
   return rows[0] || null;
 }
 
-module.exports = { findById, findBySlug, create, updateName };
+async function lockById(id, client) {
+  const { rows } = await client.query(
+    `SELECT id
+       FROM tenants
+      WHERE id = $1 AND deleted_at IS NULL
+      FOR UPDATE`,
+    [id],
+  );
+  return rows[0] || null;
+}
+
+module.exports = {
+  findById, findBySlug, create, updateName, lockById,
+};

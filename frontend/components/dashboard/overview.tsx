@@ -1,16 +1,35 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, ArrowUpRight, BrainCircuit, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BrainCircuit, CheckCircle2, Download, ShieldCheck } from 'lucide-react'
 import { Badge, Card } from '@/components/ui/card'
 import { CapitalCovenantRadar } from '@/components/dashboard/capital-covenant-radar'
 import { PermitPulsePanel } from '@/components/dashboard/permit-pulse-panel'
 import { ReviewDefensePack } from '@/components/dashboard/review-defense-pack'
 import { ScenarioShockMatrix } from '@/components/dashboard/scenario-shock-matrix'
 import { activity, dashboardCards, valuationRows } from '@/lib/data'
+import { buildDemoPortfolioMemo } from '@/lib/demo-export'
 
 export function DashboardOverview() {
+  const [exportStatus, setExportStatus] = useState<string | null>(null)
+
+  function exportDemoMemo() {
+    try {
+      const blob = new Blob([buildDemoPortfolioMemo(valuationRows)], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = 'propintel-demo-portfolio-memo.md'
+      anchor.click()
+      URL.revokeObjectURL(url)
+      setExportStatus('Demo memo downloaded.')
+    } catch {
+      setExportStatus('Demo memo could not be downloaded in this browser.')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -103,7 +122,16 @@ export function DashboardOverview() {
             <p className="text-sm text-white/52">Priority queue</p>
             <h2 className="text-xl font-semibold">Active valuations</h2>
           </div>
-          <button className="rounded-full border border-white/12 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-white/72 hover:bg-white/12">Export memo</button>
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            <button onClick={exportDemoMemo} className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-white/72 hover:bg-white/12" aria-label="Export illustrative portfolio memo">
+              <Download className="size-4" />
+              Export demo memo
+            </button>
+            <p className="text-xs text-amber">Illustrative fixtures only</p>
+          </div>
+        </div>
+        <div aria-live="polite" aria-atomic="true">
+          {exportStatus ? <p role="status" className="border-b border-white/10 px-5 py-3 text-sm font-semibold text-cyan">{exportStatus}</p> : null}
         </div>
         <div id="reports" className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">

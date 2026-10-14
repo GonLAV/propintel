@@ -21,7 +21,6 @@ import {
   type GroundedReportInput,
 } from '@/lib/aiReportGenerator'
 import { createAPIClient, type V1ReportGenerateResponse, type V1ValuationResponse } from '@/lib/apiClient'
-import { getMvpApiBaseUrl } from '@/lib/runtimeConfig'
 
 interface AdjustmentMultipliers {
   parking: number
@@ -250,9 +249,7 @@ export function AIComparableReportStudioLive() {
   const [runHistory, setRunHistory] = useKV<PersistedRunArtifact[]>('ai-comp-run-history', [])
   const [reportHistory, setReportHistory] = useKV<PersistedReportArtifact[]>('ai-report-history', [])
 
-  const apiBaseURL = getMvpApiBaseUrl()
-
-  const apiClient = useMemo(() => createAPIClient(apiBaseURL), [apiBaseURL])
+  const apiClient = useMemo(() => createAPIClient(), [])
 
   const comparablesPool = useMemo(() => buildDemoPool(subject), [subject])
 
@@ -577,7 +574,9 @@ export function AIComparableReportStudioLive() {
       <Card>
         <CardHeader>
           <CardTitle>Connection Status</CardTitle>
-          <CardDescription>API base URL: {apiBaseURL}</CardDescription>
+          <CardDescription>
+            Same-origin API proxy: /mvp-api. Server-side configuration is required for authenticated calls.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Badge variant={apiRunId ? 'success' : 'outline'}>

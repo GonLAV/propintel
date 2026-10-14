@@ -29,6 +29,7 @@ import {
   type CleanTransaction,
 } from '@/lib/dataGovAPI'
 import { createLogger } from '@/lib/logger'
+import { calculateSizeNormalizationAdjustment } from '@/lib/valuationAssistantMath'
 
 const log = createLogger('ValuationAssistant')
 
@@ -172,15 +173,15 @@ export function ValuationAssistant() {
     const scored: ComparableResult[] = transactions.map(tx => {
       const adjustments: Adjustment[] = []
 
-      // Size adjustment: ±2% per 10 sqm difference
+      // Normalize the comparable to the subject area before applying other adjustments.
       const sizeDiff = property.area - tx.area
-      const sizeAdj = (sizeDiff / 10) * -0.02 * tx.price
-      if (Math.abs(sizeAdj) > 0) {
+      const sizeNormalization = calculateSizeNormalizationAdjustment(property.area, tx.area, tx.price)
+      if (Math.abs(sizeNormalization.amount) > 0) {
         adjustments.push({
           factor: 'שטח',
           description: `${sizeDiff > 0 ? '+' : ''}${sizeDiff.toFixed(0)} מ"ר`,
-          percentage: (sizeDiff / 10) * -2,
-          amount: Math.round(sizeAdj),
+          percentage: sizeNormalization.percentage,
+          amount: Math.round(sizeNormalization.amount),
         })
       }
 

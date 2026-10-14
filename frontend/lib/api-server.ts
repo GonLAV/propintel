@@ -8,6 +8,7 @@ export type ApiRequestContext = {
 type RateLimitOptions = {
   limit: number
   windowMs: number
+  identity?: string
 }
 
 type RateLimitBucket = {
@@ -19,12 +20,15 @@ const buckets = new Map<string, RateLimitBucket>()
 const defaultMaxJSONBytes = 64 * 1024
 
 export function createRequestContext(request: Request): ApiRequestContext {
-  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  const realIp = request.headers.get('x-real-ip')?.trim()
+  const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true'
+  const forwardedFor = trustProxyHeaders
+    ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    : undefined
+  const realIp = trustProxyHeaders ? request.headers.get('x-real-ip')?.trim() : undefined
 
   return {
     requestId: request.headers.get('x-request-id') || crypto.randomUUID(),
-    ipAddress: forwardedFor || realIp || 'local',
+    ipAddress: forwardedFor || realIp || 'untrusted-client',
   }
 }
 
@@ -79,7 +83,7 @@ export function rateLimit(context: ApiRequestContext, scope: string, options: Ra
   const now = Date.now()
   pruneExpiredBuckets(now)
 
-  const key = `${scope}:${context.ipAddress}`
+  const key = `${scope}:${options.identity || context.ipAddress}`
   const bucket = buckets.get(key)
 
   if (!bucket || bucket.resetAt <= now) {

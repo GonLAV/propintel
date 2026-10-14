@@ -77,7 +77,8 @@ export interface Client {
   phone: string
   company?: string
   avatar?: string
-  properties: string[]
+  /** @deprecated Property.clientId is the canonical client-property relationship. */
+  properties?: string[]
   notes: string
   createdAt: string
 }
@@ -209,6 +210,8 @@ export interface Report {
   downloadUrl?: string
   notes?: string
   watermark: boolean
+  contentHtml?: string
+  fileName?: string
 }
 
 export interface ReportSection {

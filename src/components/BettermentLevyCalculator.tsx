@@ -452,7 +452,17 @@ export function BettermentLevyCalculator() {
       return
     }
 
-    const result = calculateBettermentValue()
+    const result = calculateScenarioResult({
+      id: 'current',
+      name: 'חישוב נוכחי',
+      previousStatus,
+      newStatus,
+      determiningDate,
+      lotSize,
+      marketValue,
+      marketDataSource,
+      calculationMethod
+    })
     
     if (result) {
       toast.success('החישוב הושלם בהצלחה')
@@ -638,46 +648,6 @@ export function BettermentLevyCalculator() {
         setPlanValidationStatus(prev => ({ ...prev, new: undefined }))
       }
     }
-  }
-
-  const _handleAIAnalysis = async () => {
-    if (!determiningDate) {
-      toast.error('יש להזין מועד קובע תחילה')
-      return
-    }
-
-    toast.info('מנתח זכויות תכנוניות באמצעות AI...')
-    
-    setTimeout(() => {
-      toast.success('ניתוח AI הושלם - נמצאו 3 עסקאות רלוונטיות למועד הקובע')
-      
-      setMarketDataSource([
-        {
-          transactionDate: determiningDate,
-          pricePerSqm: 18500,
-          source: 'מידע נדלן - עסקת השוואה 1',
-          location: 'באותו אזור',
-          verified: true
-        },
-        {
-          transactionDate: determiningDate,
-          pricePerSqm: 19200,
-          source: 'מידע נדלן - עסקת השוואה 2',
-          location: 'באותו אזור',
-          verified: true
-        },
-        {
-          transactionDate: determiningDate,
-          pricePerSqm: 17800,
-          source: 'מידע נדלן - עסקת השוואה 3',
-          location: 'באותו אזור',
-          verified: true
-        }
-      ])
-      
-      const avgPrice = (18500 + 19200 + 17800) / 3
-      setMarketValue(avgPrice)
-    }, 2000)
   }
 
   const result = calculateBettermentValue()
@@ -2989,7 +2959,8 @@ export function BettermentLevyCalculator() {
                       <div className="p-3 bg-muted/50 rounded-lg text-sm">
                         <div className="font-semibold mb-1">מקור נתוני שוק</div>
                         <div className="text-muted-foreground">
-                          {marketDataSource.length} עסקאות השוואה ממקורות ממשלתיים מאומתים
+                          {marketDataSource.filter(item => item.verified).length} עסקאות מאומתות ו-
+                          {marketDataSource.filter(item => !item.verified).length} עסקאות לא מאומתות
                         </div>
                       </div>
 

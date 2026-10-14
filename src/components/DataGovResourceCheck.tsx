@@ -43,7 +43,9 @@ export default function DataGovResourceCheck() {
           <div><b>format:</b> {result.format || '—'}</div>
           <div><b>state:</b> {result.state || '—'}</div>
           <div><b>last modified:</b> {result.last_modified || '—'}</div>
-          <div className="text-muted-foreground">השתמשו במשאב תקין בלבד. אם אינו זמין, עדכנו את המזהה בקובץ dataGovAPI.ts.</div>
+          <div className="text-muted-foreground">
+            השתמשו במשאב תקין בלבד. אם אינו זמין, הגדירו VITE_DATA_GOV_NADLAN_RESOURCE_ID בקובץ הסביבה והפעילו מחדש את Vite.
+          </div>
         </Card>
       )}
     </div>

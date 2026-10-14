@@ -1,5 +1,9 @@
 'use strict';
 
+const { isIP } = require('node:net');
+
+const env = process.env.NODE_ENV || 'development';
+
 function required(name) {
   const v = process.env[name];
   if (v === undefined || v === '') {
@@ -23,7 +27,44 @@ function list(name, def = []) {
   return v.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-const env = process.env.NODE_ENV || 'development';
+function trustProxy(name = 'TRUST_PROXY') {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return false;
+
+  const value = raw.trim();
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (/^\d+$/.test(value)) {
+    const hops = Number(value);
+    if (Number.isSafeInteger(hops) && hops >= 0 && hops <= 255) return hops;
+  }
+
+  const namedRanges = new Set(['loopback', 'linklocal', 'uniquelocal']);
+  const entries = value.split(',').map((entry) => entry.trim()).filter(Boolean);
+  const valid = entries.length > 0 && entries.every((entry) => {
+    if (namedRanges.has(entry)) return true;
+    const [address, prefix, ...rest] = entry.split('/');
+    if (rest.length || !isIP(address)) return false;
+    if (prefix === undefined) return true;
+    if (!/^\d+$/.test(prefix)) return false;
+    const maxPrefix = isIP(address) === 4 ? 32 : 128;
+    return Number(prefix) >= 0 && Number(prefix) <= maxPrefix;
+  });
+  if (valid) return entries;
+
+  throw new Error(
+    `${name} must be false, true, a hop count from 0-255, or a comma-separated IP/CIDR allowlist`,
+  );
+}
+
+function encryptionKey(name = 'ENCRYPTION_KEY') {
+  const fallback = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  const value = process.env[name] || (env !== 'production' ? fallback : required(name));
+  if (!/^[0-9a-fA-F]{64}$/.test(value)) {
+    throw new Error(`${name} must be exactly 64 hexadecimal characters (32 bytes)`);
+  }
+  return value.toLowerCase();
+}
 
 module.exports = {
   env,
@@ -32,7 +73,7 @@ module.exports = {
   port: num('PORT', 3000),
   apiPrefix: process.env.API_PREFIX || '/api/v1',
   logLevel: process.env.LOG_LEVEL || (env === 'production' ? 'info' : 'debug'),
-  trustProxy: num('TRUST_PROXY', 1),
+  trustProxy: trustProxy(),
   corsOrigins: list('CORS_ORIGINS', ['http://localhost:5173']),
 
   database: {
@@ -62,10 +103,7 @@ module.exports = {
 
   bcryptRounds: num('BCRYPT_ROUNDS', 12),
 
-  encryptionKeyHex: process.env.ENCRYPTION_KEY
-    || (env !== 'production'
-      ? '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
-      : required('ENCRYPTION_KEY')),
+  encryptionKeyHex: encryptionKey(),
 
   rateLimit: {
     ipWindowMs: num('RATE_LIMIT_IP_WINDOW_MS', 60_000),

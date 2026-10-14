@@ -60,7 +60,7 @@ export function PropertyDetail({ property, clients, onBack, onEdit, onSave, onDe
   }
 
   const handleGenerateReport = () => {
-    toast.success('הדוח נוצר בהצלחה')
+    setActiveTab('report')
   }
 
   const propertyTypeLabels = {
@@ -225,7 +225,9 @@ export function PropertyDetail({ property, clients, onBack, onEdit, onSave, onDe
                       <div className="text-sm">
                         <span className="text-muted-foreground">מחיר למ״ר: </span>
                         <span className="font-mono font-semibold">
-                          ₪{Math.round(property.valuationData.estimatedValue / property.details.builtArea).toLocaleString()}
+                          {property.details.builtArea > 0
+                            ? `₪${Math.round(property.valuationData.estimatedValue / property.details.builtArea).toLocaleString()}`
+                            : 'לא זמין — חסר שטח חיובי'}
                         </span>
                       </div>
                     </div>
@@ -297,7 +299,7 @@ export function PropertyDetail({ property, clients, onBack, onEdit, onSave, onDe
                 confidence: result.confidenceScore,
                 method: 'hybrid' as const,
                 comparables: [],
-                notes: `שמאות אוטומטית מבוססת נתונים ממשלתיים - ציון איכות נתונים: ${result.dataQuality}%`
+                notes: `הדגמת שמאות אוטומטית סינתטית ולא מאומתת - ציון איכות נתונים: ${result.dataQuality}%`
               }
               const updatedProperty = { ...property, valuationData }
               onSave(updatedProperty)

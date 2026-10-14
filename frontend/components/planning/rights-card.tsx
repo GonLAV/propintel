@@ -19,7 +19,7 @@ export function RightsCard({ title, result, featured = false }: RightsCardProps)
           <h3 className="mt-1 text-xl font-semibold text-white">{result.data?.planNameHe || result.planNumber}</h3>
         </div>
         <Badge className={cn(result.success ? 'border-mint/20 bg-mint/10 text-mint' : 'border-amber/20 bg-amber/10 text-amber')}>
-          {result.success ? 'Verified match' : 'Manual entry'}
+          {result.success ? 'Demo fixture match' : 'Manual entry'}
         </Badge>
       </div>
 
@@ -38,7 +38,7 @@ export function RightsCard({ title, result, featured = false }: RightsCardProps)
               <div>
                 <p className="text-sm font-semibold text-white">{result.data.source}</p>
                 <p className="mt-1 text-sm leading-6 text-white/50">
-                  {result.data.municipality} · {result.data.statusHe} · updated {result.data.lastUpdate}
+                  {result.data.municipality} · {result.data.statusHe} · fixture date {result.data.lastUpdate}
                 </p>
               </div>
             </div>

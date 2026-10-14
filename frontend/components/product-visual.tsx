@@ -16,7 +16,7 @@ export function ProductVisual() {
       <div className="rounded-[1.5rem] border border-white/10 bg-ink/82 p-4 md:p-6">
         <div className="flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan">Live portfolio room</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber">Illustrative portfolio fixture</p>
             <h2 className="mt-2 text-2xl font-semibold text-white md:text-3xl">Valuation intelligence, compressed into one command center.</h2>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center text-xs text-white/65">
@@ -58,7 +58,7 @@ export function ProductVisual() {
                 <span className="grid size-10 place-items-center rounded-full bg-cyan/12 text-cyan"><MapPinned className="size-5" /></span>
                 <div>
                   <p className="text-sm font-semibold text-white">Evidence map</p>
-                  <p className="text-sm text-white/55">18 verified signals attached</p>
+                  <p className="text-sm text-white/55">18 example signals attached</p>
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2">
@@ -89,7 +89,7 @@ export function ProductVisual() {
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {[{ icon: CircleDollarSign, label: 'Yield model synced' }, { icon: ShieldCheck, label: 'Audit trail complete' }, { icon: CheckCircle2, label: 'Bank report ready' }].map(({ icon: Icon, label }) => (
+          {[{ icon: CircleDollarSign, label: 'Example yield model' }, { icon: ShieldCheck, label: 'Review log concept' }, { icon: CheckCircle2, label: 'Draft report preview' }].map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm text-white/70">
               <Icon className="size-4 text-mint" />
               {label}

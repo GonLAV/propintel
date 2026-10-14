@@ -80,6 +80,18 @@ describe('valuationEngine', () => {
       const b = incomeApproachValuation({ subject: subjectApt, inputs: { rentPerSqmMonth: 150 } });
       expect(b.value).toBeGreaterThan(a.value);
     });
+    test.each([
+      { rentPerSqmMonth: 0 },
+      { rentPerSqmMonth: -10 },
+      { capRate: 0 },
+      { capRate: -0.1 },
+      { vacancyRate: -0.01 },
+      { vacancyRate: 1 },
+      { opexRatio: -0.01 },
+      { opexRatio: 1 },
+    ])('rejects invalid income inputs: %j', (inputs) => {
+      expect(() => incomeApproachValuation({ subject: subjectApt, inputs })).toThrow(RangeError);
+    });
   });
 
   describe('reconciledValuation', () => {

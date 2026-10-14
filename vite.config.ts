@@ -1,10 +1,17 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig, PluginOption } from "vitest/config";
+import { loadEnv } from 'vite'
 
 import sparkPlugin from "@github/spark/spark-vite-plugin";
 import createIconImportProxy from "@github/spark/vitePhosphorIconProxyPlugin";
 import { resolve } from 'path'
+import {
+  createMvpApiAvailabilityPlugin,
+  createMvpApiProxyOptions,
+  MVP_API_PROXY_PATH,
+  resolveMvpApiProxyConfig,
+} from './vite/mvpApiProxy'
 
 const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
 
@@ -45,8 +52,18 @@ function phosphorDirectIconImports(): PluginOption {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, projectRoot, '')
+  const proxyConfig = resolveMvpApiProxyConfig({
+    MVP_API_TARGET: process.env.MVP_API_TARGET || fileEnv.MVP_API_TARGET,
+    MVP_API_SERVICE_TOKEN: process.env.MVP_API_SERVICE_TOKEN || fileEnv.MVP_API_SERVICE_TOKEN,
+  })
+  const proxyOptions = createMvpApiProxyOptions(proxyConfig)
+  const proxy = proxyOptions ? { [MVP_API_PROXY_PATH]: proxyOptions } : undefined
+
+  return {
   plugins: [
+    createMvpApiAvailabilityPlugin(proxyConfig),
     phosphorDirectIconImports(),
     react(),
     tailwindcss(),
@@ -58,6 +75,12 @@ export default defineConfig({
     alias: {
       '@': resolve(projectRoot, 'src')
     }
+  },
+  server: {
+    proxy,
+  },
+  preview: {
+    proxy,
   },
   build: {
     rollupOptions: {
@@ -90,7 +113,8 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'vite/**/*.test.ts'],
     exclude: ['node_modules/**', 'dist/**', 'saas-backend/**', '**/__wt/**'],
   },
+  }
 });

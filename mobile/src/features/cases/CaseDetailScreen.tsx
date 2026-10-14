@@ -1,38 +1,87 @@
-import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { AccessibilityInfo, ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { capturePhotoEvidence, pickPhotoEvidence } from '@/features/cases/evidenceCapture'
-import { generateEvidenceTrustLedger } from '@/features/cases/evidenceTrustLedger'
-import { DiraCase, EvidenceItem } from '@/features/cases/model'
+import { EvidenceTrustLedger, generateEvidenceTrustLedger } from '@/features/cases/evidenceTrustLedger'
+import { DeliveryEvent, DiraCase, EvidenceItem } from '@/features/cases/model'
 import { generateResolutionAutopilot } from '@/features/cases/resolutionAutopilot'
 import { colors } from '@/theme/tokens'
 
-export function CaseDetailScreen({ item, onBack, onAddEvidence }: { item: DiraCase; onBack: () => void; onAddEvidence: (evidence: EvidenceItem) => void }) {
+export function CaseDetailScreen({
+  item,
+  onBack,
+  onAddEvidence,
+  onShareOutcome,
+}: {
+  item: DiraCase
+  onBack: () => void
+  onAddEvidence: (evidence: EvidenceItem) => void
+  onShareOutcome: (event: Omit<DeliveryEvent, 'id'>) => void
+}) {
   const letter = buildLetter(item)
   const autopilot = generateResolutionAutopilot(item)
-  const ledger = generateEvidenceTrustLedger(item)
+  const [ledger, setLedger] = useState<EvidenceTrustLedger>()
+  const [ledgerError, setLedgerError] = useState<string>()
+
+  useEffect(() => {
+    let active = true
+    setLedger(undefined)
+    setLedgerError(undefined)
+    generateEvidenceTrustLedger(item)
+      .then((nextLedger) => {
+        if (active) setLedger(nextLedger)
+      })
+      .catch(() => {
+        if (active) setLedgerError('לא ניתן לחשב את שרשרת הראיות')
+      })
+    return () => {
+      active = false
+    }
+  }, [item])
 
   async function shareLetter() {
-    await Share.share({ message: letter })
+    await shareContent('letter', letter)
   }
 
   async function shareAutopilot() {
-    await Share.share({ message: autopilot.shareText })
+    await shareContent('autopilot', autopilot.shareText)
   }
 
   async function shareLedger() {
-    await Share.share({ message: ledger.shareText })
+    if (ledger) await shareContent('ledger', ledger.shareText)
+  }
+
+  async function shareContent(kind: DeliveryEvent['kind'], message: string) {
+    try {
+      const result = await Share.share({ message })
+      const outcome: DeliveryEvent['outcome'] = result.action === Share.dismissedAction ? 'dismissed' : 'shared'
+      onShareOutcome({ kind, outcome, occurredAt: new Date().toISOString() })
+      AccessibilityInfo.announceForAccessibility(
+        outcome === 'shared' ? 'השיתוף הושלם ונרשם בתיק' : 'השיתוף בוטל ונרשם בתיק',
+      )
+    } catch {
+      Alert.alert('השיתוף נכשל', 'לא ניתן לפתוח את גיליון השיתוף. נסו שוב')
+    }
   }
 
   async function addCameraEvidence() {
-    const result = await capturePhotoEvidence(defaultEvidenceLabel(item))
-    handleCaptureResult(result)
+    try {
+      const result = await capturePhotoEvidence(defaultEvidenceLabel(item))
+      handleCaptureResult(result)
+    } catch {
+      Alert.alert('לא ניתן לצרף ראיה', 'קריאת קובץ הראיה או חישוב חתימת SHA-256 נכשלו')
+    }
   }
 
   async function addGalleryEvidence() {
-    const result = await pickPhotoEvidence(defaultEvidenceLabel(item))
-    handleCaptureResult(result)
+    try {
+      const result = await pickPhotoEvidence(defaultEvidenceLabel(item))
+      handleCaptureResult(result)
+    } catch {
+      Alert.alert('לא ניתן לצרף ראיה', 'קריאת קובץ הראיה או חישוב חתימת SHA-256 נכשלו')
+    }
   }
 
   function handleCaptureResult(result: { evidence?: EvidenceItem; error?: string }) {
@@ -46,7 +95,14 @@ export function CaseDetailScreen({ item, onBack, onAddEvidence }: { item: DiraCa
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text onPress={onBack} style={styles.back}>חזרה</Text>
+        <Pressable
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה לרשימת התיקים"
+          style={styles.backTarget}
+        >
+          <Text style={styles.back}>חזרה</Text>
+        </Pressable>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.subtitle}>{item.address}</Text>
       </View>
@@ -83,31 +139,54 @@ export function CaseDetailScreen({ item, onBack, onAddEvidence }: { item: DiraCa
       </Card>
 
       <Card style={[styles.card, styles.ledgerCard]}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Evidence Trust Ledger</Text>
-          <Text style={[styles.scorePill, ledger.tier === 'verified' ? styles.scoreStrong : ledger.tier === 'review' ? styles.scoreWorkable : styles.scoreWeak]}>{ledger.trustScore}/100</Text>
-        </View>
-        <Text style={styles.ledgerHeadline}>{ledger.headline}</Text>
-        <Text style={styles.ledgerChain}>Chain ID: {ledger.chainId}</Text>
-        <View style={styles.ledgerTimeline}>
-          {ledger.entries.map((entry, index) => (
-            <View key={entry.id} style={styles.ledgerRow}>
-              <View style={styles.ledgerMarker}>
-                <Text style={styles.ledgerIndex}>{index + 1}</Text>
-              </View>
-              <View style={styles.ledgerText}>
-                <Text style={styles.ledgerLabel}>{entry.label}</Text>
-                <Text style={styles.ledgerProof}>{entry.digest} · {entry.chainProof}</Text>
-                <Text style={styles.ledgerSignals}>{entry.trustSignals.join(' · ')}</Text>
-              </View>
+        {ledger ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Evidence Trust Ledger</Text>
+              <Text style={[styles.scorePill, ledger.tier === 'verified' ? styles.scoreStrong : ledger.tier === 'review' ? styles.scoreWorkable : styles.scoreWeak]}>{ledger.trustScore}/100</Text>
+            </View>
+            <Text style={styles.ledgerHeadline}>{ledger.headline}</Text>
+            <Text style={styles.ledgerChain}>Chain ID: {ledger.chainId}</Text>
+            <View style={styles.ledgerTimeline}>
+              {ledger.entries.map((entry, index) => (
+                <View key={entry.id} style={styles.ledgerRow}>
+                  <View style={styles.ledgerMarker}>
+                    <Text style={styles.ledgerIndex}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.ledgerText}>
+                    <Text style={styles.ledgerLabel}>{entry.label}</Text>
+                    <Text style={styles.ledgerProof}>{entry.digest} · {entry.chainProof}</Text>
+                    <Text style={styles.ledgerSignals}>{entry.trustSignals.join(' · ')}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            {ledger.warnings.length ? (
+              <Text style={styles.gapsText}>בדיקה: {ledger.warnings.join(' · ')}</Text>
+            ) : null}
+            <Button label="שיתוף Ledger ראיות" onPress={shareLedger} variant="secondary" />
+          </>
+        ) : ledgerError ? (
+          <Text accessibilityRole="alert" style={styles.gapsText}>{ledgerError}</Text>
+        ) : (
+          <View style={styles.ledgerLoading}>
+            <ActivityIndicator color={colors.blue} />
+            <Text accessibilityLiveRegion="polite" style={styles.ledgerLoadingText}>מחשב שרשרת SHA-256…</Text>
+          </View>
+        )}
+      </Card>
+
+      {item.deliveryEvents.length ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>אירועי מסירה</Text>
+          {item.deliveryEvents.slice(0, 5).map((event) => (
+            <View key={event.id} style={styles.deliveryRow}>
+              <Text style={styles.deliveryLabel}>{deliveryLabel(event)}</Text>
+              <Text style={styles.deliveryTime}>{new Date(event.occurredAt).toLocaleString('he-IL')}</Text>
             </View>
           ))}
-        </View>
-        {ledger.warnings.length ? (
-          <Text style={styles.gapsText}>בדיקה: {ledger.warnings.join(' · ')}</Text>
-        ) : null}
-        <Button label="שיתוף Ledger ראיות" onPress={shareLedger} variant="secondary" />
-      </Card>
+        </Card>
+      ) : null}
 
       <Card style={styles.card}>
         <View style={styles.sectionHeader}>
@@ -156,10 +235,16 @@ function buildLetter(item: DiraCase) {
   ].join('\n')
 }
 
+function deliveryLabel(event: DeliveryEvent) {
+  const kind = event.kind === 'letter' ? 'מכתב' : event.kind === 'autopilot' ? 'המלצת פעולה' : 'Ledger ראיות'
+  return event.outcome === 'shared' ? `${kind} שותף בהצלחה` : `שיתוף ${kind} בוטל`
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
   header: { gap: 8 },
+  backTarget: { minWidth: 44, minHeight: 44, alignSelf: 'flex-end', justifyContent: 'center', paddingHorizontal: 8 },
   back: { color: colors.blue, fontSize: 15, fontWeight: '900', textAlign: 'right' },
   title: { color: colors.ink, fontSize: 30, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
   subtitle: { color: colors.muted, fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
@@ -177,7 +262,7 @@ const styles = StyleSheet.create({
   evidenceText: { flex: 1 },
   evidenceLabel: { color: colors.ink, fontSize: 15, fontWeight: '800', textAlign: 'right' },
   evidenceMeta: { color: colors.muted, fontSize: 12, marginTop: 4, textAlign: 'right' },
-  autopilotCard: { borderColor: '#BBF7D0', backgroundColor: '#F8FFFB' },
+  autopilotCard: { borderColor: colors.successBorder, backgroundColor: colors.successSurface },
   ledgerCard: { borderColor: colors.line, backgroundColor: colors.card },
   scorePill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, fontWeight: '900' },
   scoreStrong: { color: colors.green, backgroundColor: colors.softGreen },
@@ -193,6 +278,8 @@ const styles = StyleSheet.create({
   ledgerHeadline: { color: colors.ink, fontSize: 17, lineHeight: 25, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
   ledgerChain: { color: colors.blue, fontSize: 12, fontWeight: '800', textAlign: 'right' },
   ledgerTimeline: { gap: 10 },
+  ledgerLoading: { minHeight: 72, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  ledgerLoadingText: { color: colors.muted, fontSize: 14 },
   ledgerRow: { flexDirection: 'row-reverse', gap: 10, alignItems: 'flex-start' },
   ledgerMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.softBlue, alignItems: 'center', justifyContent: 'center' },
   ledgerIndex: { color: colors.blue, fontSize: 12, fontWeight: '900' },
@@ -200,5 +287,8 @@ const styles = StyleSheet.create({
   ledgerLabel: { color: colors.ink, fontSize: 14, lineHeight: 21, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   ledgerProof: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'right' },
   ledgerSignals: { color: colors.green, fontSize: 11, lineHeight: 17, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
+  deliveryRow: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10, gap: 3 },
+  deliveryLabel: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  deliveryTime: { color: colors.muted, fontSize: 12, textAlign: 'right' },
   letter: { color: colors.ink, fontSize: 15, lineHeight: 25, textAlign: 'right', writingDirection: 'rtl' },
 })

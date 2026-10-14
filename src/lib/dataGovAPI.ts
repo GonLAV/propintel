@@ -1,5 +1,5 @@
 export const DATA_GOV_IL_BASE_URL = "https://data.gov.il/api/3/action/datastore_search"
-export const NADLAN_RESOURCE_ID = "8f714b7f-c35c-4b40-a0e7-547b675eee0e"
+export const NADLAN_RESOURCE_ID = import.meta.env.VITE_DATA_GOV_NADLAN_RESOURCE_ID?.trim() || ""
 
 import { createLogger } from '@/lib/logger'
 import { uid } from '@/lib/utils'
@@ -54,6 +54,41 @@ export interface DataGovValuationResult {
   dataQuality: number
 }
 
+export function resolveDataGovResourceId(
+  env: Record<string, string | undefined> = import.meta.env,
+): string {
+  const resourceId = env.VITE_DATA_GOV_NADLAN_RESOURCE_ID?.trim()
+  if (!resourceId) {
+    throw new Error(
+      'לא הוגדר משאב עסקאות Data.gov.il. יש להגדיר VITE_DATA_GOV_NADLAN_RESOURCE_ID עם מזהה משאב CKAN פעיל.',
+    )
+  }
+  return resourceId
+}
+
+export function buildDataGovSearchUrl(params: {
+  resourceId: string
+  city: string
+  street?: string
+  limit?: number
+  offset?: number
+}): URL {
+  const resourceId = params.resourceId.trim()
+  if (!resourceId) {
+    throw new Error('Data.gov.il resource ID is required')
+  }
+
+  const filters: Record<string, string> = { city: params.city }
+  if (params.street) filters.street = params.street
+
+  const url = new URL(DATA_GOV_IL_BASE_URL)
+  url.searchParams.set('resource_id', resourceId)
+  url.searchParams.set('limit', String(params.limit ?? 100))
+  url.searchParams.set('offset', String(params.offset ?? 0))
+  url.searchParams.set('filters', JSON.stringify(filters))
+  return url
+}
+
 export async function fetchTransactionsFromDataGov(params: {
   city: string
   street?: string
@@ -63,19 +98,13 @@ export async function fetchTransactionsFromDataGov(params: {
   const { city, street, limit = 100, offset = 0 } = params
 
   try {
-    const filters: Record<string, string> = {
-      city: city
-    }
-    
-    if (street) {
-      filters.street = street
-    }
-
-    const url = new URL(DATA_GOV_IL_BASE_URL)
-    url.searchParams.append('resource_id', NADLAN_RESOURCE_ID)
-    url.searchParams.append('limit', limit.toString())
-    url.searchParams.append('offset', offset.toString())
-    url.searchParams.append('filters', JSON.stringify(filters))
+    const url = buildDataGovSearchUrl({
+      resourceId: resolveDataGovResourceId(),
+      city,
+      street,
+      limit,
+      offset,
+    })
 
     log.info('[DataGov API] Fetching from:', url.toString())
 
@@ -129,7 +158,7 @@ export function normalizeTransactions(rawRecords: RawTransaction[]): CleanTransa
       price,
       pricePerSqm,
       area,
-      date: record.dealDate || new Date().toISOString().split('T')[0],
+      date: record.dealDate || '',
       city: String(record.city || ''),
       street: String(record.street || ''),
       houseNumber: String(record.houseNumber || ''),
@@ -152,6 +181,9 @@ export function calculateBasicValuation(
   transactions: CleanTransaction[],
   targetArea: number
 ): DataGovValuationResult {
+  if (!Number.isFinite(targetArea) || targetArea <= 0) {
+    throw new Error('Target area must be a positive finite number')
+  }
   if (transactions.length === 0) {
     throw new Error('No transactions available for valuation')
   }
@@ -165,7 +197,7 @@ export function calculateBasicValuation(
   const estimatedPricePerSqm = medianPricePerSqm
   const estimatedValue = Math.round(estimatedPricePerSqm * targetArea)
 
-  const minValue = Math.round((estimatedPricePerSqm - stdDev) * targetArea)
+  const minValue = Math.max(0, Math.round((estimatedPricePerSqm - stdDev) * targetArea))
   const maxValue = Math.round((estimatedPricePerSqm + stdDev) * targetArea)
 
   const confidence = determineConfidence(transactions.length, stdDev / avgPricePerSqm)

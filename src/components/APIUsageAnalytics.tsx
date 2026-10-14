@@ -373,9 +373,10 @@ export function APIUsageAnalytics() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ apiName, requests }) => 
-                        `${API_CONFIGS[apiName as keyof typeof API_CONFIGS]?.name}: ${requests}`
-                      }
+                      label={(props) => {
+                        const { apiName, requests } = props as unknown as { apiName: string; requests: number }
+                        return `${API_CONFIGS[apiName as keyof typeof API_CONFIGS]?.name}: ${requests}`
+                      }}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="requests"
@@ -406,9 +407,10 @@ export function APIUsageAnalytics() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ apiName, cost }) => 
-                        `${API_CONFIGS[apiName as keyof typeof API_CONFIGS]?.name}: ₪${cost.toFixed(2)}`
-                      }
+                      label={(props) => {
+                        const { apiName, cost } = props as unknown as { apiName: string; cost: number }
+                        return `${API_CONFIGS[apiName as keyof typeof API_CONFIGS]?.name}: ₪${cost.toFixed(2)}`
+                      }}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="cost"

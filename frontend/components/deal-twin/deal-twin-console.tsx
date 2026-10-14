@@ -80,11 +80,11 @@ export function DealTwinConsole() {
           <div className="border-b border-white/10 p-5 md:p-6">
             <Badge className="border-cyan/20 bg-cyan/10 text-cyan">
               <BrainCircuit className="size-3.5" />
-              Decision twin
+              Demo scenario · deterministic model
             </Badge>
             <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white md:text-3xl">What would need to be true?</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/56">
-              Simulate an investment committee before the meeting: reverse-engineer approval conditions, downside triggers, and the exact diligence moves that change the decision.
+              Explore illustrative inputs with a deterministic local model. Results are decision-support examples, not market data, an appraisal, or investment advice.
             </p>
           </div>
 

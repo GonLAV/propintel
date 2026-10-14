@@ -14,10 +14,10 @@ type SparkUser = {
   isOwner?: boolean
 }
 
-function renderApp(user: SparkUser) {
+function renderApp() {
   createRoot(document.getElementById('root')!).render(
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <App currentUser={user} />
+      <App />
     </ErrorBoundary>
   )
 }
@@ -51,12 +51,7 @@ async function bootstrap() {
     return
   }
 
-  renderApp(sparkUser || {
-    id: 'local-development-owner',
-    login: 'local-owner',
-    email: import.meta.env.VITE_LOCAL_OWNER_EMAIL || 'owner@localhost',
-    isOwner: true,
-  })
+  renderApp()
 }
 
 void bootstrap()

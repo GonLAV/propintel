@@ -50,6 +50,9 @@ function renderMarkdown(p) {
 }
 
 async function create(tenantId, { valuationId, title, format, createdBy }) {
+  if (format === 'pdf') {
+    throw BadRequest('PDF report generation is not implemented');
+  }
   const valuation = await valRepo.findById(tenantId, valuationId);
   if (!valuation) throw NotFound('Valuation not found');
   if (valuation.status !== 'completed') {
@@ -61,8 +64,6 @@ async function create(tenantId, { valuationId, title, format, createdBy }) {
   const base = buildPayload({ valuation, property });
   const payload = format === 'markdown' ? { ...base, markdown: renderMarkdown(base) } : base;
 
-  // PDF generation is not implemented in the MVP; the API still records the
-  // intended format so a worker can later produce and attach storage_url.
   return repo.create(tenantId, { valuationId, title, format, payload, createdBy });
 }
 

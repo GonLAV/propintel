@@ -33,9 +33,10 @@ export function LandingPage() {
               A premium valuation operating system for appraisers, funds, banks, and acquisition teams that need fast evidence, clean judgment, and board-ready reports.
             </motion.p>
             <motion.div variants={fadeUp} className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <LinkButton href="/register" className="h-12 px-7">Start building value <ArrowRight className="size-4" /></LinkButton>
-              <LinkButton href="/dashboard" variant="secondary" className="h-12 px-7"><PlayCircle className="size-4" /> View live dashboard</LinkButton>
+              <LinkButton href="/login" className="h-12 px-7">Administrator sign in <ArrowRight className="size-4" /></LinkButton>
+              <LinkButton href="/dashboard" variant="secondary" className="h-12 px-7"><PlayCircle className="size-4" /> View demo dashboard</LinkButton>
             </motion.div>
+            <motion.p variants={fadeUp} className="mt-4 text-sm text-white/48">Accounts are invite-only and provisioned by the deployment administrator.</motion.p>
             <motion.div variants={fadeUp} className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-2 text-left">
               {heroHighlights.map((Icon, index) => (
                 <div key={index} className="rounded-2xl border border-white/10 bg-white/[0.055] p-3 text-sm text-white/70 backdrop-blur-xl">
@@ -51,13 +52,16 @@ export function LandingPage() {
       </section>
 
       <section id="product" className="px-4 py-16">
-        <div className="container grid gap-4 md:grid-cols-3">
-          {metrics.map((metric) => (
-            <Card key={metric.label} className="p-6">
-              <p className="text-4xl font-semibold tracking-tight text-white">{metric.value}</p>
-              <p className="mt-2 text-sm text-white/56">{metric.label}</p>
-            </Card>
-          ))}
+        <div className="container">
+          <p className="mb-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber">Illustrative product metrics — not live customer data</p>
+          <div className="grid gap-4 md:grid-cols-3">
+            {metrics.map((metric) => (
+              <Card key={metric.label} className="p-6">
+                <p className="text-4xl font-semibold tracking-tight text-white">{metric.value}</p>
+                <p className="mt-2 text-sm text-white/56">{metric.label}</p>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -78,15 +82,15 @@ export function LandingPage() {
         <div className="container">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
-              <Badge>Pricing</Badge>
-              <h2 className="mt-5 text-4xl font-semibold tracking-tight text-white md:text-6xl">Scale from studio to institution.</h2>
+              <Badge>Illustrative packaging</Badge>
+              <h2 className="mt-5 text-4xl font-semibold tracking-tight text-white md:text-6xl">Example plans for deployment discussions.</h2>
             </div>
-            <p className="max-w-md text-white/60">Transparent SaaS packaging for modern valuation teams, with an enterprise path when security and integration depth matter.</p>
+            <p className="max-w-md text-white/60">These packages and prices are product examples only. Public self-service purchase and registration are not available.</p>
           </div>
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
             {pricingPlans.map((plan) => (
               <Card key={plan.name} className={plan.featured ? 'border-cyan/30 bg-cyan/[0.075]' : ''}>
-                {plan.featured && <Badge className="mb-4 border-cyan/25 bg-cyan/10 text-cyan">Most popular</Badge>}
+                {plan.featured && <Badge className="mb-4 border-cyan/25 bg-cyan/10 text-cyan">Example featured plan</Badge>}
                 <h3 className="text-2xl font-semibold text-white">{plan.name}</h3>
                 <p className="mt-3 text-sm leading-6 text-white/58">{plan.description}</p>
                 <div className="mt-7 flex items-end gap-2">
@@ -101,7 +105,7 @@ export function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <LinkButton href="/register" variant={plan.featured ? 'primary' : 'secondary'} className="mt-8 w-full">Choose {plan.name}</LinkButton>
+                <LinkButton href="/login" variant={plan.featured ? 'primary' : 'secondary'} className="mt-8 w-full">Invite-only access</LinkButton>
               </Card>
             ))}
           </div>
@@ -110,6 +114,7 @@ export function LandingPage() {
 
       <section id="customers" className="px-4 py-20">
         <div className="container">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-amber">Illustrative personas and quotes — not customer testimonials</p>
           <div className="grid gap-4 lg:grid-cols-3">
             {testimonials.map((item) => (
               <Card key={item.name}>

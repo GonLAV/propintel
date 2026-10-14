@@ -87,13 +87,7 @@ const AIPhotoAnalysis = lazy(() => import('@/components/AIPhotoAnalysis').then(m
 const ValuationAssistant = lazy(() => import('@/components/ValuationAssistant').then(m => ({ default: m.ValuationAssistant })))
 const AIComparableReportStudio = lazy(() => import('@/components/AIComparableReportStudioLive').then(m => ({ default: m.AIComparableReportStudioLive })))
 
-interface AppProps {
-  currentUser: {
-    email?: string | null
-  }
-}
-
-function App({ currentUser }: AppProps) {
+function App() {
   const [properties, setProperties] = useKV<Property[]>('properties', generateMockProperties())
   const [clients, setClients] = useKV<Client[]>('clients', generateMockClients())
   const { activeView, navigate } = useNavigation()
@@ -162,6 +156,8 @@ function App({ currentUser }: AppProps) {
     navigate('properties')
   }, [navigate])
 
+  useEffect(() => bus.on('property:createRequested', handleCreateNew), [handleCreateNew])
+
   // ── Shared data refs (avoid re-creating || [] on every render) ──
   const safeProperties = properties || []
   const safeClients = clients || []
@@ -174,7 +170,6 @@ function App({ currentUser }: AppProps) {
           <ClientPortal 
             clients={safeClients} 
             properties={safeProperties}
-            authenticatedEmail={currentUser.email || ''}
             onBackToAdmin={() => {
               setIsClientPortalMode(false)
               window.history.replaceState({}, '', window.location.pathname)

@@ -5,7 +5,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { createAPIClient, type V1IngestionRunRequest, type V1IngestionRunResponse } from '@/lib/apiClient'
-import { getMvpApiBaseUrl } from '@/lib/runtimeConfig'
 
 const samplePayload: V1IngestionRunRequest = {
   createdBy: 'manual-ui',
@@ -41,8 +40,7 @@ const samplePayload: V1IngestionRunRequest = {
 }
 
 export default function IngestionHelper() {
-  const apiBaseURL = getMvpApiBaseUrl()
-  const apiClient = useMemo(() => createAPIClient(apiBaseURL), [apiBaseURL])
+  const apiClient = useMemo(() => createAPIClient(), [])
 
   const [payloadText, setPayloadText] = useState(JSON.stringify(samplePayload, null, 2))
   const [runResult, setRunResult] = useState<V1IngestionRunResponse | null>(null)
@@ -105,7 +103,9 @@ export default function IngestionHelper() {
       <Card>
         <CardHeader>
           <CardTitle>Payload JSON</CardTitle>
-          <CardDescription>API base URL: {apiBaseURL}</CardDescription>
+          <CardDescription>
+            Same-origin API proxy: /mvp-api. Authentication is injected by the Vite server and is never exposed to the browser.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea

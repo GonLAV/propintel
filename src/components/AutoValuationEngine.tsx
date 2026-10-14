@@ -18,7 +18,7 @@ import {
   ArrowsClockwise,
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { enrichPropertyWithGovData } from '@/lib/israelGovAPI'
+import { enrichPropertyWithGovData, isSyntheticGovernmentDemoEnabled } from '@/lib/israelGovAPI'
 import type { Property } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 
@@ -61,6 +61,7 @@ interface AutoValuationEngineProps {
 }
 
 export function AutoValuationEngine({ property, onValuationComplete }: AutoValuationEngineProps) {
+  const syntheticDemoEnabled = isSyntheticGovernmentDemoEnabled()
   const [isValuating, setIsValuating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState('')
@@ -68,21 +69,30 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
   const [govData, setGovData] = useState<any>(null)
 
   const runAutoValuation = async () => {
+    if (!syntheticDemoEnabled) {
+      toast.error('השמאות האוטומטית אינה זמינה ללא ספק נתונים מאומת')
+      return
+    }
+    if (!Number.isFinite(property.details.builtArea) || property.details.builtArea <= 0) {
+      toast.error('נדרש שטח בנוי חיובי לחישוב השווי')
+      return
+    }
+
     setIsValuating(true)
     setProgress(0)
-    setCurrentStep('מתחבר למקורות נתונים ממשלתיים...')
+    setCurrentStep('מכין נתוני הדגמה סינתטיים...')
 
     try {
       setProgress(10)
-      setCurrentStep('שולף נתוני טאבו...')
+      setCurrentStep('מייצר נתוני הדגמה לרישום...')
       await new Promise(resolve => setTimeout(resolve, 500))
 
       setProgress(25)
-      setCurrentStep('שולף תכניות בנין עיר...')
+      setCurrentStep('מייצר נתוני הדגמה תכנוניים...')
       await new Promise(resolve => setTimeout(resolve, 500))
 
       setProgress(40)
-      setCurrentStep('שולף נתוני מיסוי...')
+      setCurrentStep('מייצר נתוני הדגמה למיסוי...')
       const enrichedData = await enrichPropertyWithGovData(
         property.id,
         `${property.address.street}, ${property.address.city}`
@@ -91,7 +101,7 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
       await new Promise(resolve => setTimeout(resolve, 500))
 
       setProgress(55)
-      setCurrentStep('מנתח עסקאות בשוק...')
+      setCurrentStep('מנתח עסקאות הדגמה סינתטיות...')
       await new Promise(resolve => setTimeout(resolve, 800))
 
       setProgress(70)
@@ -99,7 +109,7 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
       await new Promise(resolve => setTimeout(resolve, 600))
 
       setProgress(85)
-      setCurrentStep('מפעיל מנוע שמאות AI...')
+      setCurrentStep('מחשב תוצאת הדגמה...')
       
       const valuationResult = calculateAutoValuation(property, enrichedData)
       setResult(valuationResult)
@@ -107,7 +117,7 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
       setProgress(100)
       setCurrentStep('השמאות הושלמה!')
       
-      toast.success('שמאות אוטומטית הושלמה בהצלחה')
+      toast.warning('הדגמת השמאות הסינתטית הושלמה — הנתונים אינם ממשלתיים ואינם מאומתים')
       
       if (onValuationComplete) {
         onValuationComplete(valuationResult)
@@ -121,6 +131,7 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
   }
 
   const calculateAutoValuation = (prop: Property, data: any): AutoValuationResult => {
+    const isVerifiedData = data.verification !== 'synthetic-unverified'
     const baseValuePerSqm = data.taxData.taxAssessedValue / prop.details.builtArea
     const marketMultiplier = 1.15
     const baseValue = baseValuePerSqm * prop.details.builtArea * marketMultiplier
@@ -153,29 +164,29 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
       max: Math.round(estimatedValue * (1 + variance))
     }
 
-    const dataQuality = calculateDataQuality(data)
-    const confidenceScore = Math.min(95, 60 + (dataQuality * 0.35))
+    const dataQuality = isVerifiedData ? calculateDataQuality(data) : 0
+    const confidenceScore = isVerifiedData ? Math.min(95, 60 + (dataQuality * 0.35)) : 20
 
     const factors = [
       {
         name: 'Location Quality',
         nameHe: 'איכות מיקום',
         impact: (locationAdjustment / estimatedValue) * 100,
-        source: 'GIS + Municipal Data',
+        source: isVerifiedData ? 'GIS + Municipal Data' : 'Synthetic demo — unverified',
         description: `ציון הליכות ${data.gis.accessibility.walkabilityScore}, מרחק לתחבורה ציבורית ${data.gis.accessibility.distanceToPublicTransport}מ'`
       },
       {
         name: 'Market Trend',
         nameHe: 'מגמת שוק',
         impact: (marketTrendAdjustment / estimatedValue) * 100,
-        source: 'Land Registry Transactions',
+        source: isVerifiedData ? 'Land Registry Transactions' : 'Synthetic demo — unverified',
         description: `${data.transactions.length} עסקאות ב-12 חודשים אחרונים, מחיר ממוצע ₪${avgTransactionPrice.toLocaleString('he-IL')}/מ"ר`
       },
       {
         name: 'Building Rights',
         nameHe: 'זכויות בנייה',
         impact: (planningAdjustment / estimatedValue) * 100,
-        source: 'Planning Administration',
+        source: isVerifiedData ? 'Planning Administration' : 'Synthetic demo — unverified',
         description: `תכנית ${data.planning.planNumber}, אחוזי בנייה ${data.planning.buildingRights.far}%, ${data.planning.buildingRights.heightFloors} קומות`
       },
       {
@@ -189,6 +200,10 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
 
     const warnings: string[] = []
     const recommendations: string[] = []
+
+    if (!isVerifiedData) {
+      warnings.push('כל נתוני ההדגמה סינתטיים, אינם ממשלתיים ואינם מתאימים לשומה או לקבלת החלטה.')
+    }
 
     if (data.landRegistry.encumbrances.length > 0) {
       warnings.push(`קיימים ${data.landRegistry.encumbrances.length} שעבודים על הנכס`)
@@ -222,12 +237,12 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
       confidenceScore: Math.round(confidenceScore),
       dataQuality: Math.round(dataQuality),
       sources: {
-        landRegistry: !!data.landRegistry,
-        planning: !!data.planning,
-        taxAuthority: !!data.taxData,
-        municipal: !!data.municipal,
-        marketData: data.transactions.length > 0,
-        gis: !!data.gis
+        landRegistry: isVerifiedData && !!data.landRegistry,
+        planning: isVerifiedData && !!data.planning,
+        taxAuthority: isVerifiedData && !!data.taxData,
+        municipal: isVerifiedData && !!data.municipal,
+        marketData: isVerifiedData && data.transactions.length > 0,
+        gis: isVerifiedData && !!data.gis
       },
       breakdown: {
         baseValue: Math.round(baseValue),
@@ -265,6 +280,21 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
 
   return (
     <div className="space-y-6" dir="rtl">
+      <Card className="p-4 border-warning bg-warning/5">
+        <div className="flex items-start gap-3">
+          <Warning className="w-5 h-5 text-warning mt-0.5" weight="fill" />
+          <div className="space-y-1 text-sm">
+            <div className="font-semibold">
+              {syntheticDemoEnabled ? 'מצב הדגמה סינתטי — נתונים לא מאומתים' : 'שמאות אוטומטית בזמן אמת אינה זמינה'}
+            </div>
+            <p className="text-muted-foreground">
+              {syntheticDemoEnabled
+                ? 'החישוב משתמש ברשומות הדגמה שנוצרו מקומית ואינו מציג אותן כנתוני ממשלה.'
+                : 'נדרש ספק צד-שרת מאומת שמקבל מזהה נכס, כתובת וקואורדינטות בפועל. המערכת אינה משתמשת בגוש או בקואורדינטות קבועים.'}
+            </p>
+          </div>
+        </div>
+      </Card>
       <Card className="glass-effect border-primary/30 p-6">
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -275,12 +305,14 @@ export function AutoValuationEngine({ property, onValuationComplete }: AutoValua
               </h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              שמאות מדויקת המבוססת על נתונים ממשלתיים אמיתיים בזמן אמת
+              {syntheticDemoEnabled
+                ? 'הדגמה סינתטית ולא מאומתת בלבד — ללא נתונים ממשלתיים בזמן אמת'
+                : 'לא זמין עד לחיבור ספק צד-שרת מאומת לנתונים ספציפיים לנכס'}
             </p>
           </div>
           <Button
             onClick={runAutoValuation}
-            disabled={isValuating}
+            disabled={isValuating || !syntheticDemoEnabled}
             size="lg"
             className="gap-2 glow-primary"
           >

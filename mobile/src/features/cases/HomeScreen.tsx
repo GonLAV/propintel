@@ -5,11 +5,24 @@ import { Card } from '@/components/Card'
 import { DiraCase } from '@/features/cases/model'
 import { colors } from '@/theme/tokens'
 
-export function HomeScreen({ cases, onCreate, onOpenCase }: { cases: DiraCase[]; onCreate: () => void; onOpenCase: (id: string) => void }) {
+export function HomeScreen({
+  cases,
+  onCreate,
+  onOpenCase,
+  onLogout,
+}: {
+  cases: DiraCase[]
+  onCreate: () => void
+  onOpenCase: (id: string) => void
+  onLogout: () => void
+}) {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>DiraShield</Text>
+        <View style={styles.brandRow}>
+          <Button label="יציאה" onPress={onLogout} variant="secondary" style={styles.logoutButton} />
+          <Text style={styles.kicker}>DiraShield</Text>
+        </View>
         <Text style={styles.title}>מה צריך לסגור היום?</Text>
         <Text style={styles.subtitle}>תיק אחד, פעולה אחת, בלי לרדוף אחרי הודעות וראיות.</Text>
       </View>
@@ -26,8 +39,14 @@ export function HomeScreen({ cases, onCreate, onOpenCase }: { cases: DiraCase[];
         data={cases}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListEmptyComponent={<Text style={styles.empty}>אין עדיין תיקים. פתחו תיק חדש כדי להתחיל.</Text>}
         renderItem={({ item }) => (
-          <Pressable onPress={() => onOpenCase(item.id)} accessibilityRole="button">
+          <Pressable
+            onPress={() => onOpenCase(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}, ${item.address}`}
+            accessibilityHint="פותח את פרטי התיק"
+          >
             <Card style={styles.caseCard}>
               <View style={styles.caseTop}>
                 <StatusPill status={item.status} />
@@ -47,12 +66,15 @@ export function HomeScreen({ cases, onCreate, onOpenCase }: { cases: DiraCase[];
 function StatusPill({ status }: { status: DiraCase['status'] }) {
   const label = status === 'urgent' ? 'דחוף' : status === 'sent' ? 'נשלח' : status === 'resolved' ? 'נסגר' : 'טיוטה'
   const color = status === 'urgent' ? colors.red : status === 'resolved' ? colors.green : colors.blue
-  return <Text style={[styles.status, { color, backgroundColor: status === 'urgent' ? colors.softRed : colors.softBlue }]}>{label}</Text>
+  const backgroundColor = status === 'urgent' ? colors.softRed : status === 'resolved' ? colors.softGreen : colors.softBlue
+  return <Text style={[styles.status, { color, backgroundColor }]}>{label}</Text>
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, padding: 20, gap: 18 },
   header: { paddingTop: 18, gap: 8 },
+  brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  logoutButton: { minHeight: 44, paddingHorizontal: 16 },
   kicker: { color: colors.blue, fontSize: 14, fontWeight: '900', textAlign: 'right' },
   title: { color: colors.ink, fontSize: 30, fontWeight: '900', textAlign: 'right', writingDirection: 'rtl' },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 24, textAlign: 'right', writingDirection: 'rtl' },
@@ -62,6 +84,7 @@ const styles = StyleSheet.create({
   actionText: { color: colors.muted, fontSize: 15, lineHeight: 23, textAlign: 'right', writingDirection: 'rtl' },
   sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '900', textAlign: 'right' },
   list: { gap: 12, paddingBottom: 32 },
+  empty: { color: colors.muted, fontSize: 15, lineHeight: 23, textAlign: 'right', writingDirection: 'rtl' },
   caseCard: { gap: 10 },
   caseTop: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
   status: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, fontSize: 12, fontWeight: '900' },

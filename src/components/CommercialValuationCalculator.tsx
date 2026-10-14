@@ -70,7 +70,7 @@ export function CommercialValuationCalculator() {
         maxArea: property.totalArea ? property.totalArea * 1.3 : 150,
         fromDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         toDate: new Date().toISOString().split('T')[0],
-        verifiedOnly: false,
+        verifiedOnly: true,
         limit: 50
       }
 
@@ -165,9 +165,9 @@ export function CommercialValuationCalculator() {
         <div className="flex gap-3">
           <Info className="w-6 h-6 text-accent shrink-0 mt-0.5" weight="duotone" />
           <div>
-            <h3 className="font-bold text-accent text-lg">✅ חיבור למאגר נדל"ן ממשלתי</h3>
+            <h3 className="font-bold text-accent text-lg">שליפה ממקור ממשלתי לפי דרישה</h3>
             <p className="text-sm mt-1">
-              המערכת מחוברת למאגר נדל"ן הממשלתי ושולפת עסקאות אמיתיות לנכסי מסחר.
+              מוצגות רק עסקאות שהתקבלו בפועל ממקור מוגדר. במקרה כשל לא נוצרים נתוני דמה וניתן להזין עסקאות ידנית.
             </p>
           </div>
         </div>

@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto');
 
 const config = require('../../../config');
 const logger = require('../../../config/logger');
+const { withTransaction } = require('../../../config/database');
 const { sha256, randomToken } = require('../../../utils/encryption');
 const { BadRequest, Unauthorized, NotFound } = require('../../../utils/errors');
 
@@ -28,13 +29,15 @@ async function requestReset({ email, tenantSlug, ip, userAgent }) {
 
   if (tenantSlug) {
     tenant = await tenantsRepo.findBySlug(tenantSlug);
-    if (tenant) {
+    if (tenant && tenant.status === 'active') {
       const found = await usersRepo.findByEmail(tenant.id, lowered);
       if (found && found.status !== 'disabled') user = found;
     }
   } else {
     const matches = await usersRepo.findByEmailGlobal(lowered);
-    const active = matches.filter((m) => m.status !== 'disabled');
+    const active = matches.filter(
+      (m) => m.status !== 'disabled' && m.tenant_status === 'active',
+    );
     if (active.length === 1) {
       user = active[0];
       tenant = await tenantsRepo.findById(user.tenant_id);
@@ -71,24 +74,30 @@ async function requestReset({ email, tenantSlug, ip, userAgent }) {
 async function confirmReset({ token, newPassword }) {
   if (!token || !newPassword) throw BadRequest('token and newPassword required');
   const tokenHash = sha256(token);
-  const record = await resetRepo.findActiveByHash(tokenHash);
-  if (!record) throw Unauthorized('Invalid or expired reset token');
-  if (record.used_at) throw Unauthorized('Reset token already used');
-  if (new Date(record.expires_at).getTime() < Date.now()) {
-    throw Unauthorized('Reset token expired');
-  }
-  const user = await usersRepo.findById(record.tenant_id, record.user_id);
-  if (!user) throw NotFound('User not found');
+  return withTransaction(async (client) => {
+    const record = await resetRepo.findActiveByHash(tokenHash, client, { forUpdate: true });
+    if (!record) throw Unauthorized('Invalid or expired reset token');
+    if (record.used_at) throw Unauthorized('Reset token already used');
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+      throw Unauthorized('Reset token expired');
+    }
+    const user = await usersRepo.findById(record.tenant_id, record.user_id, client);
+    if (!user) throw NotFound('User not found');
 
-  const passwordHash = await bcrypt.hash(newPassword, config.bcryptRounds);
-  await usersRepo.update(record.tenant_id, record.user_id, { password_hash: passwordHash });
+    const passwordHash = await bcrypt.hash(newPassword, config.bcryptRounds);
+    const consumed = await resetRepo.markUsed(record.id, client);
+    if (!consumed) throw Unauthorized('Reset token already used');
+    await usersRepo.update(
+      record.tenant_id,
+      record.user_id,
+      { password_hash: passwordHash },
+      client,
+    );
+    await resetRepo.revokeAllForUser(record.user_id, client);
+    await refreshRepo.revokeAllForUser(record.user_id, client);
 
-  // Invalidate everything: this token, sibling tokens, and all refresh sessions.
-  await resetRepo.markUsed(record.id);
-  await resetRepo.revokeAllForUser(record.user_id);
-  await refreshRepo.revokeAllForUser(record.user_id);
-
-  return { ok: true, userId: record.user_id, tenantId: record.tenant_id };
+    return { ok: true, userId: record.user_id, tenantId: record.tenant_id };
+  });
 }
 
 module.exports = { requestReset, confirmReset };

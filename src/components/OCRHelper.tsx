@@ -212,14 +212,16 @@ export default function OCRHelper() {
     let startX = 0
     let startY = 0
 
-    const getPos = (ev: MouseEvent) => {
+    const getPos = (ev: PointerEvent) => {
       const rect = overlay.getBoundingClientRect()
       const x = (ev.clientX - rect.left) * (overlay.width / rect.width)
       const y = (ev.clientY - rect.top) * (overlay.height / rect.height)
       return { x, y }
     }
 
-    const onDown = (ev: MouseEvent) => {
+    const onDown = (ev: PointerEvent) => {
+      ev.preventDefault()
+      overlay.setPointerCapture(ev.pointerId)
       isDown = true
       const p = getPos(ev)
       startX = p.x
@@ -228,8 +230,9 @@ export default function OCRHelper() {
       setRoi(next)
       drawRoiOverlay(next)
     }
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
       if (!isDown) return
+      ev.preventDefault()
       const p = getPos(ev)
       const x = Math.min(startX, p.x)
       const y = Math.min(startY, p.y)
@@ -239,18 +242,21 @@ export default function OCRHelper() {
       setRoi(next)
       drawRoiOverlay(next)
     }
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
       isDown = false
+      if (overlay.hasPointerCapture(ev.pointerId)) overlay.releasePointerCapture(ev.pointerId)
     }
 
-    overlay.addEventListener('mousedown', onDown)
-    overlay.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    overlay.addEventListener('pointerdown', onDown)
+    overlay.addEventListener('pointermove', onMove)
+    overlay.addEventListener('pointerup', onUp)
+    overlay.addEventListener('pointercancel', onUp)
 
     return () => {
-      overlay.removeEventListener('mousedown', onDown)
-      overlay.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      overlay.removeEventListener('pointerdown', onDown)
+      overlay.removeEventListener('pointermove', onMove)
+      overlay.removeEventListener('pointerup', onUp)
+      overlay.removeEventListener('pointercancel', onUp)
     }
   }
 
@@ -259,6 +265,43 @@ export default function OCRHelper() {
     return () => cleanup?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const handleRoiKeyboard = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const overlay = overlayCanvasRef.current
+    if (!overlay) return
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      const next = roi || {
+        x: overlay.width * 0.1,
+        y: overlay.height * 0.1,
+        w: overlay.width * 0.8,
+        h: overlay.height * 0.8,
+      }
+      setRoi(next)
+      drawRoiOverlay(next)
+      return
+    }
+
+    if (!roi || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+    event.preventDefault()
+    const delta = event.shiftKey ? 10 : 2
+    const next = { ...roi }
+    if (event.ctrlKey || event.metaKey) {
+      if (event.key === 'ArrowLeft') next.w -= delta
+      if (event.key === 'ArrowRight') next.w += delta
+      if (event.key === 'ArrowUp') next.h -= delta
+      if (event.key === 'ArrowDown') next.h += delta
+    } else {
+      if (event.key === 'ArrowLeft') next.x -= delta
+      if (event.key === 'ArrowRight') next.x += delta
+      if (event.key === 'ArrowUp') next.y -= delta
+      if (event.key === 'ArrowDown') next.y += delta
+    }
+    const clamped = clampRoi(next)
+    setRoi(clamped)
+    drawRoiOverlay(clamped)
+  }
 
   const cropCanvas = (source: HTMLCanvasElement, r: { x: number; y: number; w: number; h: number }) => {
     const out = document.createElement('canvas')
@@ -837,7 +880,14 @@ ${result.fullText.slice(0, 18000)}
           <div className="relative w-full overflow-auto rounded-md border bg-background" style={{ maxHeight: 520 }}>
             <div className="relative inline-block">
               <canvas ref={previewCanvasRef} className="block" />
-              <canvas ref={overlayCanvasRef} className="absolute inset-0 cursor-crosshair" />
+              <canvas
+                ref={overlayCanvasRef}
+                className="absolute inset-0 cursor-crosshair touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                tabIndex={0}
+                role="application"
+                aria-label="בחירת אזור OCR. גרור בעכבר או במגע. במקלדת לחץ Enter לבחירת אזור, חצים להזזה, ו-Control יחד עם חצים לשינוי גודל."
+                onKeyDown={handleRoiKeyboard}
+              />
             </div>
           </div>
 

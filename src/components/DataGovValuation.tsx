@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Database, TrendUp, CheckCircle, Warning, Info, Sparkle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { performCompleteValuation, generateAppraisalPrompt, type CleanTransaction, type DataGovValuationResult } from '@/lib/dataGovAPI'
+import { NADLAN_RESOURCE_ID, performCompleteValuation, generateAppraisalPrompt, type CleanTransaction, type DataGovValuationResult } from '@/lib/dataGovAPI'
 import { createAppraisalRecord, addAIAnalysis, exportAppraisalToCSV, type AppraisalRecord } from '@/lib/appraisalSchema'
 import { createLogger } from '@/lib/logger'
 
@@ -30,6 +30,7 @@ export function DataGovValuation({
   initialArea = 0,
   onValuationComplete
 }: DataGovValuationProps) {
+  const resourceConfigured = Boolean(NADLAN_RESOURCE_ID)
   const [city, setCity] = useState(initialCity)
   const [street, setStreet] = useState(initialStreet)
   const [area, setArea] = useState(initialArea)
@@ -46,6 +47,7 @@ export function DataGovValuation({
   const [aiAnalysis, setAiAnalysis] = useState<string>('')
   
   const [activeTab, setActiveTab] = useState('input')
+  const [visibleTransactionCount, setVisibleTransactionCount] = useState(25)
 
   const handleFetchAndCalculate = async () => {
     if (!city || !area || area <= 0) {
@@ -75,6 +77,7 @@ export function DataGovValuation({
       setCurrentStep('מנקה ומנרמל נתונים...')
       
       setTransactions(result.transactions)
+      setVisibleTransactionCount(25)
       setValuation(result.valuation)
 
       setProgress(80)
@@ -275,7 +278,9 @@ export function DataGovValuation({
         <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
           <Info className="w-5 h-5 text-primary" />
           <p className="text-sm">
-            המערכת משתמשת ב-API הרשמי של data.gov.il לשליפת עסקאות אמיתיות מרשם המקרקעין
+            {resourceConfigured
+              ? 'המערכת תנסה לשלוף נתונים מהמשאב שהוגדר. רק תשובת API מוצלחת תסומן כמקור data.gov.il.'
+              : 'לא הוגדר משאב Data.gov.il פעיל. יש להגדיר VITE_DATA_GOV_NADLAN_RESOURCE_ID; לא יוצגו נתוני דמה.'}
           </p>
         </div>
       </Card>
@@ -365,7 +370,7 @@ export function DataGovValuation({
             <div className="mt-6 flex gap-3">
               <Button
                 onClick={handleFetchAndCalculate}
-                disabled={isLoading || !city || !area}
+                disabled={isLoading || !city || !area || !resourceConfigured}
                 className="flex-1"
               >
                 <Database className="ml-2" />
@@ -492,7 +497,7 @@ export function DataGovValuation({
 
             <ScrollArea className="h-[400px]">
               <div className="space-y-2">
-                {transactions.map((tx, index) => (
+                {transactions.slice(0, visibleTransactionCount).map((tx, index) => (
                   <Card key={tx.id} className="p-4 hover:bg-muted/50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -517,6 +522,15 @@ export function DataGovValuation({
                     </div>
                   </Card>
                 ))}
+                {visibleTransactionCount < transactions.length && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setVisibleTransactionCount(count => count + 25)}
+                  >
+                    טען עוד עסקאות ({transactions.length - visibleTransactionCount} נותרו)
+                  </Button>
+                )}
               </div>
             </ScrollArea>
           </Card>

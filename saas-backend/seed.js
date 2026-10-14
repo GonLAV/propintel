@@ -21,17 +21,21 @@ const { randomUUID } = require('node:crypto');
 const { pool, query } = require('./src/config/database');
 const config = require('./src/config');
 
-async function main() {
+async function main({
+  dbQuery = query,
+  hashPassword = bcrypt.hash,
+  env = process.env,
+} = {}) {
   console.log('Seeding development data…');
 
   // Tenant
   const slug = 'demo';
-  let tenant = (await query(
+  let tenant = (await dbQuery(
     `SELECT id, name, slug FROM tenants WHERE slug = $1 AND deleted_at IS NULL`,
     [slug],
   )).rows[0];
   if (!tenant) {
-    const r = await query(
+    const r = await dbQuery(
       `INSERT INTO tenants (name, slug) VALUES ($1, $2) RETURNING id, name, slug`,
       ['Demo Co', slug],
     );
@@ -42,18 +46,18 @@ async function main() {
   }
 
   // Owner user
-  const ownerEmail = process.env.SEED_OWNER_EMAIL || 'owner@demo.test';
-  let user = (await query(
+  const ownerEmail = env.SEED_OWNER_EMAIL || 'owner@demo.test';
+  const ownerPassword = env.SEED_OWNER_PASSWORD || '';
+  if (ownerPassword.length < 12) {
+    throw new Error('SEED_OWNER_PASSWORD must be configured with at least 12 characters');
+  }
+  const passwordHash = await hashPassword(ownerPassword, config.bcryptRounds);
+  let user = (await dbQuery(
     `SELECT id, email FROM users WHERE tenant_id = $1 AND email = $2 AND deleted_at IS NULL`,
     [tenant.id, ownerEmail],
   )).rows[0];
   if (!user) {
-    const ownerPassword = process.env.SEED_OWNER_PASSWORD || '';
-    if (ownerPassword.length < 12) {
-      throw new Error('SEED_OWNER_PASSWORD must be configured with at least 12 characters');
-    }
-    const passwordHash = await bcrypt.hash(ownerPassword, config.bcryptRounds);
-    const r = await query(
+    const r = await dbQuery(
       `INSERT INTO users (tenant_id, email, password_hash, full_name, role)
        VALUES ($1, $2, $3, $4, 'owner') RETURNING id, email`,
       [tenant.id, ownerEmail, passwordHash, 'Demo Owner'],
@@ -61,17 +65,23 @@ async function main() {
     user = r.rows[0];
     console.log(`  ✓ created owner ${user.email}`);
   } else {
-    console.log(`  • owner ${user.email} already exists`);
+    await dbQuery(
+      `UPDATE users
+          SET password_hash = $3
+        WHERE tenant_id = $1 AND email = $2 AND deleted_at IS NULL`,
+      [tenant.id, ownerEmail, passwordHash],
+    );
+    console.log(`  ✓ updated owner credentials for ${user.email}`);
   }
 
   // One sample property if none yet
-  const propCount = Number((await query(
+  const propCount = Number((await dbQuery(
     `SELECT COUNT(*)::int AS c FROM properties WHERE tenant_id = $1 AND deleted_at IS NULL`,
     [tenant.id],
   )).rows[0].c);
   if (propCount === 0) {
     const id = randomUUID();
-    await query(
+    await dbQuery(
       `INSERT INTO properties (id, tenant_id, address, city, property_type,
                                area_sqm, rooms, floor, year_built, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -82,7 +92,7 @@ async function main() {
   }
 
   // Comparable sales — only insert if tenant has fewer than 5
-  const compsCount = Number((await query(
+  const compsCount = Number((await dbQuery(
     `SELECT COUNT(*)::int AS c FROM comparable_sales WHERE tenant_id = $1 AND deleted_at IS NULL`,
     [tenant.id],
   )).rows[0].c);
@@ -101,7 +111,7 @@ async function main() {
     ];
     for (const s of samples) {
       const sold = new Date(today.getTime() - s.daysAgo * 24 * 3600 * 1000);
-      await query(
+      await dbQuery(
         `INSERT INTO comparable_sales
            (tenant_id, city, property_type, area_sqm, rooms, floor, year_built,
             sale_price, currency, sold_at, source)
@@ -119,10 +129,14 @@ async function main() {
   console.log(`  tenant:   ${slug}`);
 }
 
-main()
-  .then(() => pool.end())
-  .catch((e) => {
-    console.error('Seed failed:', e);
-    pool.end().catch(() => {});
-    process.exit(1);
-  });
+if (require.main === module) {
+  main()
+    .then(() => pool.end())
+    .catch((e) => {
+      console.error('Seed failed:', e);
+      pool.end().catch(() => {});
+      process.exit(1);
+    });
+}
+
+module.exports = { main };

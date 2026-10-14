@@ -533,8 +533,8 @@ class IsraeliGovernmentAPI {
         condition: ['משופץ', 'שמור', 'דורש שיפוץ'][Math.floor(Math.random() * 3)],
         age: Math.floor(Math.random() * 40),
         features: ['מעלית', 'מרפסת', 'חניה'].filter(() => Math.random() > 0.5),
-        verified: Math.random() > 0.2,
-        source: 'land-registry'
+        verified: false,
+        source: 'platform'
       })
     }
     
@@ -546,7 +546,19 @@ class IsraeliGovernmentAPI {
 
 export const israelGovAPI = new IsraeliGovernmentAPI()
 
+export function isSyntheticGovernmentDemoEnabled(
+  env: Record<string, string | undefined> = import.meta.env,
+): boolean {
+  return env.VITE_ENABLE_SYNTHETIC_GOV_DEMO === 'true'
+}
+
 export async function enrichPropertyWithGovData(propertyId: string, address: string) {
+  if (!isSyntheticGovernmentDemoEnabled()) {
+    throw new Error(
+      'שמאות אוטומטית בזמן אמת אינה זמינה בדפדפן ללא ספק נתונים מאומת שמקבל מזהה נכס וקואורדינטות. מצב הדגמה סינתטי כבוי כברירת מחדל.',
+    )
+  }
+
   try {
     const [landRegistry, planning, taxData, municipal, gis, transactions] = await Promise.all([
       israelGovAPI.fetchLandRegistryData('12345', '67'),
@@ -564,6 +576,7 @@ export async function enrichPropertyWithGovData(propertyId: string, address: str
       municipal,
       gis,
       transactions,
+      verification: 'synthetic-unverified' as const,
       enrichedAt: new Date().toISOString()
     }
   } catch (error) {

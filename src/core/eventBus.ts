@@ -23,6 +23,7 @@ export interface PlatformEvents {
   'property:updated': Property
   'property:deleted': string           // id
   'property:selected': Property
+  'property:createRequested': void
 
   // Client lifecycle
   'client:created': Client
