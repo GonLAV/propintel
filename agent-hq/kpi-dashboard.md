@@ -8,7 +8,7 @@
 
 | מדד | ערך אחרון | תאריך מדידה | מגמה |
 |---|---|---|---|
-| שגיאות lint (`npm run lint`) | **0 errors, 67 warnings** (זהה ל-2026-09-08 — 17 הקבצים המוקצים ל-Copilot) | 2026-10-25 | ➡ יציב (67→67). **הערת מתודולוגיה:** `eslint .` מהשורש סורק גם את `frontend/` בדרך; בפועל הפלט הגולמי מציג "68 problems" כי יש אזהרת `no-unused-vars` חדשה בקובץ אחד ב-`frontend/app/appraiser/register/page.tsx` — לא קשור לקוד הישן (`src/`) ולא ל-17 הקבצים שבאחריות Copilot. ה-67 הרלוונטי ל-baseline זהה בדיוק. |
+| שגיאות lint (`npm run lint`) | **0 errors, 1 warning** (לא-קשור, `frontend/app/appraiser/register/page.tsx`) | 2026-10-25 | 🟢 **שופר (68→1).** 17 הקבצים שהוקצו ל-GitHub Copilot לפני חודשיים — ה-PR מעולם לא נוצר — נוקו ישירות ע"י הצוות (קומיט `d057698`): 67 האזהרות תוקנו באמת, לא הושתקו (2 מקרים בלבד עם `eslint-disable` ממוקד + הסבר, כששורש-הבעיה מצריך עריכת קבצים מחוץ-לתחום). `product-status.md` עודכן לסגור את הפריט. |
 | בדיקות (`npm run test`) | **24/24 עוברות, 4 קבצי בדיקה** (`valuationEngine`, `aiComparableEngine`, `mvpComparableScoring`, `aiReportGenerator`) | 2026-10-25 | ➡ יציב (24/24→24/24, אותם קבצים) |
 | כיסוי בדיקות | לא נמדד עדיין (`npm run test:coverage` לא הורץ) | — | — |
 | פריטי חוב טכני פתוחים (`product-status.md`) | 10 פתוחים / 2 סגורים | 2026-09-08 | לא נמדד מחדש בסבב הזה (לא היה בתחום המדידה שהתבקשה) |
