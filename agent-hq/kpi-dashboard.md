@@ -13,7 +13,8 @@
 | כיסוי בדיקות | לא נמדד עדיין (`npm run test:coverage` לא הורץ) | — | — |
 | פריטי חוב טכני פתוחים (`product-status.md`) | 10 פתוחים / 2 סגורים | 2026-09-08 | לא נמדד מחדש בסבב הזה (לא היה בתחום המדידה שהתבקשה) |
 | סטטוס CI (build/lint/test) | ראו GitHub Actions | — | לא נמדד בסבב הזה |
-| תלויות (`npm audit`) | **17 פגיעויות (1 low, 6 moderate, 9 high, 1 critical)** — עדיין `npm audit fix` לא הורץ | 2026-10-25 | 🔴 **החמיר (11→17, ונוסף critical ראשון).** לא נובע משינוי קוד — אין commit חדש ב-`src/`/תלויותיו מאז 09-08. הסיבה: דיסקלוזורים חדשים (CVE) שהתגלו בחודש האחרון על **אותן גרסאות נעולות** בדיוק (`zod`, `qs`, `postcss`, `vite`, `js-yaml`, `nanoid`, `brace-expansion`, `dompurify`, `esbuild`, `fflate`, `body-parser`, `@humanfs/node`, `@vitest/mocker`). עדיין לא סווג dev-only מול production-impacting. |
+| תלויות (`npm audit`) — `src/` הישן | **17 פגיעויות (1 low, 6 moderate, 9 high, 1 critical)** — עדיין `npm audit fix` לא הורץ. **מפורש מחוץ לתחום הסבב של 2026-10-25 (אהליאב)** — ממתין למעקב נפרד וממוקד. | 2026-10-25 | 🔴 **החמיר (11→17, ונוסף critical ראשון).** לא נובע משינוי קוד — אין commit חדש ב-`src/`/תלויותיו מאז 09-08. הסיבה: דיסקלוזורים חדשים (CVE) שהתגלו בחודש האחרון על **אותן גרסאות נעולות** בדיוק (`zod`, `qs`, `postcss`, `vite`, `js-yaml`, `nanoid`, `brace-expansion`, `dompurify`, `esbuild`, `fflate`, `body-parser`, `@humanfs/node`, `@vitest/mocker`). עדיין לא סווג dev-only מול production-impacting. |
+| תלויות (`npm audit`) — `saas-backend` + `frontend` | **0 + 0** (תוקן 2026-10-25, ראו עדכון מתחת) | 2026-10-25 | 🟢 **תוקן (5→0, 7→0).** היה רגרסיה מ-0 (09-09) על אותן גרסאות נעולות; תוקן בפועל (לא הושתק) — ראו "עדכון 2026-10-25 (אהליאב)" מתחת. |
 
 ## saas-backend + frontend — מדידה ראשונה (אלעזר, 2026-09-08 ~10:26-10:28 UTC)
 
@@ -53,6 +54,15 @@
 
 **המשמעות התפעולית:** "0 פגיעויות" אחרי `npm audit fix` הוא תמונת-מצב לרגע המדידה בלבד, לא מצב קבוע — מסד הנתונים של npm ממשיך לצמוח גם בלי שינוי קוד. **המלצה לצוות (לא מכריע/מתקן על ידי):** להריץ `npm audit` באופן מחזורי (לא רק אחרי "סגירת פריט"), ובמיוחד לבדוק את `next` ב-saas כי ה-critical כולל RCE בפרודקשן.
 
+### עדכון 2026-10-25 (אהליאב) — תיקון חוזר של `npm audit` ב-saas-backend + frontend
+
+**תוקן בפועל (לא רק הושתק), באותה שיטה כמו ב-09-09.** `src/` הישן **לא נגעתי** — נשאר במפורש בחוץ לסבב הזה.
+
+- **saas-backend**: 5 פגיעויות (4 high, 1 critical) → **0**. `npm audit fix` (לא-force) תיקן 4 מה-5 (`body-parser`, `brace-expansion`, `compression`, `proxy-addr` — ה-critical של IP spoofing). הנותר (`zod`, high) לא היה לו תיקון לא-שובר: **כל** שרשרת ה-3.x (עד 3.25.76, הגרסה המותקנת) פגיעה; התיקון היחיד הקיים הוא מעבר ל-4.6.7 (מעבר major). לפני שעשיתי את זה: בדקתי בסקריפט נפרד (zod@4.6.7 מותקן בסביבת בדיקה מבודדת) את **כל** דפוסי השימוש בפועל בקוד (`z.object/.string/.number/.enum/.coerce/.record(valueSchema)/.refine/.email/.toLowerCase/.strict()`, וצורת `ZodError.issues`) — כולם עברו זהה. עודכן `zod` ל-`^4.6.7` ב-`package.json`. **אומת:** `npm audit` 0, lint נקי (0 problems), סוויטת הבדיקות המלאה **45/45 עוברות** (Postgres+Redis+migrations+Chromium אמיתיים, לא מדולל), ובדיקת עשן חיה על שרת רץ: הרשמה→יצירת נכס (עברית, `areaSqm`, `metadata` כ-`z.record(z.any())`)→`GET /properties` — כל השלבים הצליחו עם המבנה הנכון.
+- **frontend**: 7 פגיעויות (1 critical, 3 high, 3 moderate) → **0**. `npm audit fix` (לא-force) תיקן את `next` (**ל-16.4.3** — בתוך הטווח הקיים `^16.3.4`, **בלי** צורך ב-`npm install next@latest` הפעם; לא היה פער lockfile/install כמו ב-09-09), `sharp`, `source-map-js`. הנותרים: `postcss-selector-parser`/`tailwindcss` (moderate) ו-`zod` (high) — שניהם סימן `npm audit fix` כ"`--force`, Will install Xxx, breaking change". **נמנעתי מהשדרוג השובר של `tailwindcss` (3.4→4.x):** הוספתי override ל-`postcss-selector-parser@^7.1.6` (הטווח הפגיע היה `<7.1.6`) בלי לשדרג את `tailwindcss` עצמו — `npm ls` מאשר `tailwindcss@3.4.19` נשאר, `postcss-selector-parser@7.1.7 overridden`. `zod` — אותו מעבר ל-4.6.7 עם אותה בדיקת-תאימות (כולל `.transform()`+`.safeParse()`, דפוס ה-routes כאן). **אומת:** `npm audit` 0, `tsc --noEmit` 0 שגיאות, `vitest` **8/8 עוברות**, `next build` עובר (**30 routes**, זהה לבייסליין), `npm run security:scan` עובר ("Security check passed"), `npm run security:audit` עובר (היה נכשל לפני התיקון), lint מהשורש זהה לבייסליין (68 problems, 0 errors — אותה אזהרה הידועה ב-`appraiser/register/page.tsx` + 67 המוקצים ל-Copilot, אין רגרסיה חדשה), ובדיקת עשן חיה על שרת `next dev` בפועל: `/`, `/login`, `/appraiser/login` (200, כותרת עברית נכונה), `/dashboard` (307 — redirect מצופה ללא auth), `/api/health` (200).
+
+**מסקנה:** אותו דפוס בדיוק מ-09-09 — `npm audit fix` הלא-שובר פותר את רוב הרשימה, ו-major bump (כש-npm מכריח) נבדק תאימות־קוד-בפועל לפני שמבוצע, לא רק "הרצתי ותיקווה". שני הקודבייסים חזרו ל-0 פגיעויות, בלי שינוי שלא נבדק.
+
 **הערת שקיפות על תהליך המדידה:** בסביבת המדידה הזו לא היו מותקנים/מופעלים כברירת מחדל Postgres, Redis ו-Chromium (ל-Playwright/PDF export). הפעלתי את כולם מקומית כדי למדוד את חבילת הבדיקות המלאה של saas-backend כמו שהיא (לא דרך סביבה חסרה) — לפני שהורדתי Chromium, 4 בדיקות PDF-export נכשלו עם `storage_url: null`; אחרי התקנתו, **45/45 עוברות**, כלומר **אין רגרסיה אמיתית בקוד** — זו הייתה מגבלת סביבת-המדידה שלי, לא באג.
 
 ## מדדי מוצר-עתידיים (יופעלו כשיהיו משתמשים)
@@ -66,6 +76,8 @@
 ---
 
 ## עדכון אחרון
+
+**2026-10-25 (אהליאב)** — תיקון בפועל (לא רק מדידה) של רגרסיית `npm audit` שאלעזר מצא באותו יום ב-`saas-backend` (5→0) וב-`frontend` (7→0), באותה שיטה כמו 09-09: `npm audit fix` לא-שובר קודם, ובדיקת-תאימות-קוד-בפועל לפני כל שדרוג major שנשאר (`zod` 3→4 בשני הקודבייסים; נמנעתי מ-`tailwindcss` 3→4 ע"י override ממוקד ל-`postcss-selector-parser`). אומת: lint נקי, `saas-backend` 45/45 בדיקות + עשן חי על שרת אמיתי (Postgres+Redis+migrations), `frontend` 8/8 בדיקות + `tsc --noEmit` נקי + `next build` 30 routes + `security:scan`/`security:audit` עוברים + עשן חי על `next dev`. `src/` הישן **לא נגעתי** — נשאר במפורש מחוץ לתחום (17 הפגיעויות שלו ממתינות למעקב נפרד). פירוט מלא מעלה.
 
 **2026-10-25** — מדידה חדשה של אלעזר, חודש לאחר ה-baseline (2026-09-08/09), לאימות שהלוח לא stale. **תוצאה: lint/test/build/typecheck יציבים לגמרי בשלושת הקודבייסים** (ראו פירוט מעלה) — אין רגרסיית קוד. **הדגל האדום היחיד: `npm audit` החמיר בשלושתם** (legacy: 11→17; saas-backend: 0→5; frontend: 0→7, כולל critical חדש בכל אחד) — אך זה נובע מדיסקלוזורים חדשים על גרסאות נעולות שלא השתנו, לא מקוד שנכתב. `product-status.md` (חוב טכני, 10/2) ו-CI status לא נמדדו מחדש בסבב הזה — לא היו בתחום הבקשה.
 
