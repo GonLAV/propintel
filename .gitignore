@@ -34,3 +34,4 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+dump.rdb
