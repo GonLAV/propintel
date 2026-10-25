@@ -45,4 +45,8 @@ const Button = React.forwardRef(({ className, variant, size, asChild = false, ..
 })
 Button.displayName = "Button"
 
+// buttonVariants is consumed by pagination.jsx/tsx, alert-dialog.jsx/tsx and calendar.jsx/tsx
+// (outside this cleanup's approved file list); moving it to a separate module would require
+// editing those out-of-scope files too.
+// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants }

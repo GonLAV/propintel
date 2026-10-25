@@ -13,8 +13,14 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
 
+  // Intentionally run once on mount only. checkAppState is recreated every render (it's not
+  // memoized), so adding it as a dependency would re-run the full auth/app-settings check (and
+  // its network calls) on every re-render of AuthProvider instead of once at startup. That would
+  // change this auth-critical effect's behavior, so the missing dep is suppressed here rather
+  // than "fixed" by adding it.
   useEffect(() => {
     checkAppState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAppState = async () => {
@@ -145,6 +151,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// useAuth is imported from this file by App.jsx and lib/NavigationTracker.jsx (outside this
+// cleanup's approved file list); moving it to a separate module would require editing those
+// out-of-scope files too.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

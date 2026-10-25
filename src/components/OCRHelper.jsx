@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -15,10 +15,8 @@ export default function OCRHelper() {
   const [maxPages, setMaxPages] = useState(5)
   const [preferTextLayer, setPreferTextLayer] = useState(true)
   const [progress, setProgress] = useState(null)
-  const [issues, setIssues] = useState([])
+  const [, setIssues] = useState([])
   const [typedText, setTypedText] = useState('')
-
-  const canvasRef = useRef(null)
 
   const handleRun = async () => {
     if (!file) {

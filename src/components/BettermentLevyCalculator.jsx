@@ -6,21 +6,11 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { Calendar, Calculator, FileText, TrendUp, Warning, CheckCircle, Scales, Copy, Plus, Trash, Info, Book, Question, ClockCounterClockwise, ChartLine, CloudArrowDown, MagnifyingGlass, Database } from '@phosphor-icons/react'
+import { Calendar, Calculator, FileText, TrendUp, Warning, CheckCircle, Scales, Copy, Plus, Trash, Book, Question, ClockCounterClockwise } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useKV } from '@github/spark/hooks'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import {
   Accordion,
   AccordionContent,
@@ -30,21 +20,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export function BettermentLevyCalculator() {
-  const [comparisonMode, setComparisonMode] = useState(false)
-  const [historicalMode, setHistoricalMode] = useState(false)
+  const [, setHistoricalMode] = useState(false)
   const [scenarios, setScenarios] = useKV('betterment-scenarios', [])
-  const [historicalRecords, setHistoricalRecords] = useKV('betterment-history', [])
-  const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const [propertyAddress, setPropertyAddress] = useState('')
+  const [historicalRecords] = useKV('betterment-history', [])
   const [activeScenarioId, setActiveScenarioId] = useState(null)
-  const [showGuide, setShowGuide] = useState(false)
-  const [selectedForComparison, setSelectedForComparison] = useState([])
-  const [comparisonView, setComparisonView] = useState('grid')
   const [showDisclaimer, setShowDisclaimer] = useState(true)
-  const [planValidationStatus, setPlanValidationStatus] = useState({})
-  const [autoFetchingPrev, setAutoFetchingPrev] = useState(false)
-  const [autoFetchingNew, setAutoFetchingNew] = useState(false)
-  const [autoFetchEnabled, setAutoFetchEnabled] = useState(true)
 
   const [previousStatus, setPreviousStatus] = useState({
     planNumber: '',
@@ -182,11 +162,6 @@ export function BettermentLevyCalculator() {
       setActiveScenarioId(null)
     }
     toast.success('התרחיש נמחק')
-  }
-
-  const deleteHistoricalRecord = (id) => {
-    setHistoricalRecords((current) => (current || []).filter(r => r.id !== id))
-    toast.success('הרשומה ההיסטורית נמחקה')
   }
 
   const duplicateScenario = (scenario) => {

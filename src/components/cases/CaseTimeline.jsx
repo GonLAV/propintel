@@ -76,7 +76,6 @@ export default function CaseTimeline({ appraisalCase }) {
             const Icon = step.icon;
             const isCompleted = index < currentStatusIndex;
             const isCurrent = index === currentStatusIndex;
-            const isPending = index > currentStatusIndex;
 
             return (
               <div key={step.status} className="flex items-center gap-3">

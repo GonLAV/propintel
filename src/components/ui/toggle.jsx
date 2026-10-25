@@ -35,4 +35,7 @@ const Toggle = React.forwardRef(({ className, variant, size, ...props }, ref) =>
 
 Toggle.displayName = TogglePrimitive.Root.displayName
 
+// toggleVariants is consumed by toggle-group.jsx/tsx (outside this cleanup's approved file list);
+// moving it to a separate module would require editing that out-of-scope file too.
+// eslint-disable-next-line react-refresh/only-export-components
 export { Toggle, toggleVariants }

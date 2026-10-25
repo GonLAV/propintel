@@ -158,12 +158,22 @@ export function Property3DView({ propertyData }) {
       window.removeEventListener('resize', handleResize)
       renderer.dispose()
     }
+    // This effect builds the whole Three.js scene/renderer (expensive) and must only run when the
+    // geometry-affecting props change. calculateSunExposure/calculateViewQuality are plain
+    // functions that close over timeOfDay/season/floors; adding them here would rebuild the
+    // entire WebGL scene on every render (e.g. every time the time-of-day slider moves), which is
+    // not the intended behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildingHeight, plotWidth, plotLength, isAnimating])
 
+  // updateSunPosition is a plain function that closes over activeView; re-running this effect for
+  // every render (which including the function reference would cause) is unnecessary since the
+  // only genuine reactive inputs are timeOfDay/season, already listed below.
   useEffect(() => {
     if (activeView === 'sun') {
       updateSunPosition()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeOfDay, season])
 
   const updateSunPosition = () => {

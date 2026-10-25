@@ -40,10 +40,15 @@ export function AutomatedReports() {
 
   const [recipientInput, setRecipientInput] = useState('')
 
+  // checkScheduledReports is a plain function (recreated every render), and its only real
+  // reactive input is `reports`, which is already listed below. Adding checkScheduledReports
+  // itself to the deps would tear down and recreate the polling interval on every render instead
+  // of only when `reports` changes, so the missing-dep warning is suppressed rather than "fixed".
   useEffect(() => {
     checkScheduledReports()
     const interval = setInterval(checkScheduledReports, 60000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports])
 
   const checkScheduledReports = () => {
