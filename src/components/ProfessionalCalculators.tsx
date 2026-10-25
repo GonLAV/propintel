@@ -317,7 +317,7 @@ export function ProfessionalCalculators({ properties = [], onUpdateProperty }: P
             <CardHeader>
               <CardTitle>מקורות משפטיים ומקצועיים</CardTitle>
               <CardDescription>
-                כל מחשבון מבוסס על תקנים רשמיים ואסמכתאות מקצועיות
+                חלק מהמחשבונים מבוססים על תקנים רשמיים מאומתים; אחרים משקפים שיקול דעת מקצועי מקובל שאינו מעוגן בסעיף תקנתי ספציפי, או ממתינים לאימות מול המקור הרשמי — ראו פירוט בכל כרטיס
               </CardDescription>
             </CardHeader>
             <CardContent>

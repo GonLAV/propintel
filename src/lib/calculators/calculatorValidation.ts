@@ -310,67 +310,89 @@ export interface CalculatorSource {
 export class CalculatorSourceRegistry {
   private static SOURCES: CalculatorSource[] = [
     {
+      // 2026-10-25: this entry previously cited 'תקן שמאי 19 - סעיף 4.2' and 'מכון השמאים
+      // בישראל' as its legal source. Both were checked against the real, official PDF of
+      // תקן 19 (gov.il) and found fabricated: section 4.2 of the real standard covers the
+      // identity of the party ordering the appraisal, not floor adjustments, and no body by
+      // that name could be located. See agent-hq/report-standards.md for the full research.
+      // Corrected to accurately describe this as professional judgment, not a quoted legal
+      // mandate -- no official Israeli standard prescribes specific floor-adjustment percentages.
       calculatorId: 'adjustment-floor',
       formulaName: 'התאמת קומה',
-      legalSource: 'תקן שמאי 19',
-      professionalStandard: 'סעיף 4.2 - התאמות למיקום הנכס',
-      reference: 'מכון השמאים בישראל, מהדורה 2023',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      legalSource: 'שיקול דעת שמאי מקצועי (לא קבוע בתקן מספרי ספציפי)',
+      professionalStandard: 'מקובל בשיטת ההשוואה - אין סעיף תקנתי המפרט שיעור מדויק',
+      reference: 'שיקול דעת מקצועי, לא אסמכתא משפטית',
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'כלב (מחקר תקנים רשמיים, agent-hq/report-standards.md) - תוקן מציטוט שגוי'
     },
     {
+      // 2026-10-25: same fabrication pattern as adjustment-floor above -- 'סעיף 5.1' of the
+      // real תקן 19 is "סטיה מהתקן", unrelated to physical condition. Corrected.
       calculatorId: 'adjustment-condition',
       formulaName: 'התאמת מצב פיזי',
-      legalSource: 'תקן שמאי 19',
-      professionalStandard: 'סעיף 5.1 - מצב הנכס והשפעתו על השווי',
-      reference: 'מכון השמאים בישראל, מהדורה 2023',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      legalSource: 'שיקול דעת שמאי מקצועי (לא קבוע בתקן מספרי ספציפי)',
+      professionalStandard: 'מקובל בשיטת ההשוואה - אין סעיף תקנתי המפרט שיעור מדויק',
+      reference: 'שיקול דעת מקצועי, לא אסמכתא משפטית',
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'כלב (מחקר תקנים רשמיים, agent-hq/report-standards.md) - תוקן מציטוט שגוי'
     },
     {
+      // 2026-10-25: same fabrication pattern -- 'סעיף 3.4' claim on תקן 19 could not be
+      // verified against the real standard. The weighted-average/reconciliation technique
+      // itself is standard international appraisal methodology (kept as `reference`), just
+      // not an Israeli legal mandate.
       calculatorId: 'weighted-average',
       formulaName: 'ממוצע משוקלל',
-      legalSource: 'תקן שמאי 19',
-      professionalStandard: 'סעיף 3.4 - שיטת ההשוואה',
-      reference: 'The Appraisal of Real Estate, 15th Edition',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      legalSource: 'שיקול דעת שמאי מקצועי (לא קבוע בתקן מספרי ספציפי)',
+      professionalStandard: 'שיטת ההשוואה - שקלול תוצאות, לא מעוגן בסעיף תקנתי ספציפי',
+      reference: 'The Appraisal of Real Estate, 15th Edition (מתודולוגיה כללית, לא תקן ישראלי)',
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'כלב (מחקר תקנים רשמיים, agent-hq/report-standards.md) - תוקן מציטוט שגוי'
     },
     {
+      // 2026-10-25: 'תקן שמאי 20' was never actually verified against an official source
+      // (Caleb's research covered only תקן 19 and 1.1) -- rather than continue presenting an
+      // unverified citation as fact with a fake "verified" date, marking it honestly as
+      // unverified pending dedicated research.
       calculatorId: 'cost-approach',
       formulaName: 'שיטת העלות',
-      legalSource: 'תקן שמאי 20',
+      legalSource: 'לא אומת מול מקור רשמי (תקן שמאי 20 הוזכר בעבר בלי אימות)',
       professionalStandard: 'שיטת העלות - חישוב שווי לפי עלות בנייה ופחת',
       reference: 'מחירון דקל 2024',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'לא אומת - ממתין למחקר ייעודי (ראו agent-hq/roadmap.md)'
     },
     {
+      // 2026-10-25: same -- 'תקן שמאי 21' never verified. Marked honestly as unverified.
       calculatorId: 'income-capitalization',
       formulaName: 'שיטת ההיוון',
-      legalSource: 'תקן שמאי 21',
+      legalSource: 'לא אומת מול מקור רשמי (תקן שמאי 21 הוזכר בעבר בלי אימות)',
       professionalStandard: 'שיטת ההיוון לנכסים מניבים',
-      reference: 'Income Property Valuation, Appraisal Institute',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      reference: 'Income Property Valuation, Appraisal Institute (מתודולוגיה כללית, לא תקן ישראלי)',
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'לא אומת - ממתין למחקר ייעודי (ראו agent-hq/roadmap.md)'
     },
     {
+      // 2026-10-25: 'תקן שמאי 20' + 'מכון השמאים בישראל' -- same unverified standard number
+      // plus the same not-locatable body as adjustment-floor/condition above. Marked honestly.
       calculatorId: 'depreciation',
       formulaName: 'חישוב פחת',
-      legalSource: 'תקן שמאי 20',
-      professionalStandard: 'סעיף 4 - סוגי פחת והשפעתם',
-      reference: 'מכון השמאים בישראל, מהדורה 2023',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      legalSource: 'לא אומת מול מקור רשמי (תקן שמאי 20 הוזכר בעבר בלי אימות)',
+      professionalStandard: 'סוגי פחת והשפעתם על השווי',
+      reference: 'שיקול דעת מקצועי, לא אסמכתא משפטית מאומתת',
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'לא אומת - ממתין למחקר ייעודי (ראו agent-hq/roadmap.md)'
     },
     {
+      // This one was always accurate -- the Central Bureau of Statistics CPI index is a real,
+      // verifiable, public source. Left as-is.
       calculatorId: 'time-adjustment',
       formulaName: 'התאמת זמן (הצמדה למדד)',
       legalSource: 'לשכת הסטטיסטיקה המרכזית',
       professionalStandard: 'מדד המחירים לצרכן',
       reference: 'www.cbs.gov.il',
-      lastVerified: new Date('2024-01-01'),
-      verifiedBy: 'מערכת AppraisalPro'
+      lastVerified: new Date('2026-10-25'),
+      verifiedBy: 'צוות המוצר'
     }
   ]
 

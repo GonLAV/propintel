@@ -232,7 +232,11 @@ export class AdjustmentCalculator {
       value,
       applied: true,
       reasoning,
-      source: 'תקן שמאי 19 - סעיף 4.2',
+      // 2026-10-25: was 'תקן שמאי 19 - סעיף 4.2' -- checked against the real standard text
+      // (agent-hq/report-standards.md) and found fabricated; section 4.2 covers the identity
+      // of the party ordering the appraisal, not floor adjustments. No Israeli standard
+      // prescribes a specific floor-adjustment percentage; this is professional judgment.
+      source: 'שיקול דעת שמאי מקצועי (לא קבוע בתקן מספרי ספציפי)',
       category: 'physical'
     }
   }
@@ -259,7 +263,10 @@ export class AdjustmentCalculator {
       value,
       applied: true,
       reasoning: `מצב הנכס מוגדר כ${conditionNames[condition]}`,
-      source: 'תקן שמאי 19 - סעיף 5.1',
+      // 2026-10-25: was 'תקן שמאי 19 - סעיף 5.1' -- the real section 5 is "סטיה מהתקן",
+      // unrelated to physical condition. No Israeli standard prescribes a specific
+      // condition-adjustment percentage; this is professional judgment.
+      source: 'שיקול דעת שמאי מקצועי (לא קבוע בתקן מספרי ספציפי)',
       category: 'condition'
     }
   }
