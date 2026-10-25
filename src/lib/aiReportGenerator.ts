@@ -113,7 +113,7 @@ export const groundedReportInputSchema = z.object({
       saleDate: z.string(),
       salePrice: z.number().positive(),
       adjustedPrice: z.number().positive(),
-      adjustmentBreakdown: z.record(z.number()),
+      adjustmentBreakdown: z.record(z.string(), z.number()),
       explanation: z.array(z.string()),
     }),
   ),
