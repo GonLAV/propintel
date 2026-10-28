@@ -8,6 +8,8 @@ import { apiGet, apiSend, formatILS, PROPERTY_TYPES, VALUATION_METHODS } from '@
 type Property = {
   id: string; address: string; city: string; property_type: string
   area_sqm: string | null; rooms: string | null; floor: number | null; year_built: number | null
+  block: string | null; parcel: string | null; sub_parcel: string | null; visit_date: string | null
+  legal_rights_notes: string | null; planning_status_notes: string | null
 }
 type Comparable = {
   id: string; area_sqm: string; sale_price: string; sold_at: string; floor: number | null
@@ -136,6 +138,34 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               {property.rooms ? ` · ${property.rooms} חדרים` : ''}
             </p>
           </div>
+
+          <Card className="mb-6 p-5">
+            <h2 className="mb-3 text-lg font-medium text-white">זיהוי ותיעוד</h2>
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <span className="text-white/50">גוש / חלקה / תת-חלקה: </span>
+                <span className="text-white">
+                  {property.block || property.parcel || property.sub_parcel
+                    ? `${property.block || '—'} / ${property.parcel || '—'} / ${property.sub_parcel || '—'}`
+                    : 'לא צוין'}
+                </span>
+              </div>
+              <div>
+                <span className="text-white/50">מועד ביקור בנכס: </span>
+                <span className="text-white">
+                  {property.visit_date ? new Date(property.visit_date).toLocaleDateString('he-IL') : 'לא תועד'}
+                </span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-white/50">זכויות משפטיות: </span>
+                <span className="text-white">{property.legal_rights_notes || 'לא תועד'}</span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-white/50">מצב תכנוני: </span>
+                <span className="text-white">{property.planning_status_notes || 'לא תועד'}</span>
+              </div>
+            </div>
+          </Card>
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* Comparable sales */}

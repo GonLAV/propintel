@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppraiserShell } from '@/components/appraiser/shell'
-import { Card, Field, Input, Select, Button, ErrorNote } from '@/components/appraiser/ui'
+import { Card, Field, Input, Select, Textarea, Button, ErrorNote } from '@/components/appraiser/ui'
 import { apiSend, PROPERTY_TYPES } from '@/lib/appraiser-client'
 
 export default function NewPropertyPage() {
@@ -12,6 +12,7 @@ export default function NewPropertyPage() {
     address: '', city: '', propertyType: 'apartment',
     areaSqm: '', rooms: '', floor: '', yearBuilt: '',
     block: '', parcel: '', subParcel: '', visitDate: '',
+    legalRightsNotes: '', planningStatusNotes: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -36,6 +37,8 @@ export default function NewPropertyPage() {
       if (form.parcel) payload.parcel = form.parcel
       if (form.subParcel) payload.subParcel = form.subParcel
       if (form.visitDate) payload.visitDate = form.visitDate
+      if (form.legalRightsNotes) payload.legalRightsNotes = form.legalRightsNotes
+      if (form.planningStatusNotes) payload.planningStatusNotes = form.planningStatusNotes
 
       const created = await apiSend<{ id: string }>('POST', '/properties', payload)
       router.push(`/appraiser/properties/${created.id}`)
@@ -91,6 +94,14 @@ export default function NewPropertyPage() {
           </div>
           <Field label="מועד ביקור בנכס (אופציונלי)">
             <Input type="date" value={form.visitDate} onChange={(e) => set('visitDate', e.target.value)} />
+          </Field>
+          <Field label="זכויות משפטיות בנכס (אופציונלי, לפי נסח טאבו)">
+            <Textarea rows={3} value={form.legalRightsNotes} onChange={(e) => set('legalRightsNotes', e.target.value)}
+              placeholder="לדוגמה: בעלות מלאה, נקי משעבודים והערות אזהרה, לפי נסח טאבו מיום..." />
+          </Field>
+          <Field label="מצב תכנוני (אופציונלי)">
+            <Textarea rows={3} value={form.planningStatusNotes} onChange={(e) => set('planningStatusNotes', e.target.value)}
+              placeholder="לדוגמה: תכנית חלה, ייעוד, זכויות בנייה נוספות, היתרים חורגים אם ישנם..." />
           </Field>
           <ErrorNote message={error} />
           <Button type="submit" disabled={loading}>{loading ? 'שומר/ת…' : 'שמירה והמשך לשומה'}</Button>

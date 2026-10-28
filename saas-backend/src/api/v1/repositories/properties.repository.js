@@ -3,7 +3,8 @@
 const { query } = require('../../../config/database');
 
 const COLS = `id, tenant_id, external_ref, address, city, property_type,
-              area_sqm, rooms, floor, year_built, block, parcel, sub_parcel, visit_date, metadata,
+              area_sqm, rooms, floor, year_built, block, parcel, sub_parcel, visit_date,
+              legal_rights_notes, planning_status_notes, metadata,
               created_at, updated_at, created_by`;
 
 const FIELD_MAP = {
@@ -19,6 +20,8 @@ const FIELD_MAP = {
   parcel: 'parcel',
   subParcel: 'sub_parcel',
   visitDate: 'visit_date',
+  legalRightsNotes: 'legal_rights_notes',
+  planningStatusNotes: 'planning_status_notes',
   metadata: 'metadata',
 };
 

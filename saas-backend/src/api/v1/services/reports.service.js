@@ -141,6 +141,8 @@ async function create(tenantId, {
         parcel: property.parcel,
         subParcel: property.sub_parcel,
         visitDate: property.visit_date,
+        legalRightsNotes: property.legal_rights_notes,
+        planningStatusNotes: property.planning_status_notes,
       },
       valuation: { ...base.valuation, valuationDate: valuation.created_at },
       comparables: extractComparables(valuation),

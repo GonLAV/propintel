@@ -4,12 +4,15 @@
  * Hebrew/RTL HTML template for a PDF appraisal report ("שומת מקרקעין").
  *
  * Structure follows the standard shape of a real Israeli appraisal report
- * (opening block, 8 numbered sections, limiting conditions, conflict-of-
+ * (opening block, 9 numbered sections, limiting conditions, conflict-of-
  * interest declaration, signature, area-calculation appendix) as far as the
  * current PropIntel data model actually supports it. Sections the product
- * doesn't yet capture (גוש/חלקה, a tracked site visit, legal-rights/registry
- * data, site photos) are rendered as an explicit, clearly-labeled gap rather
- * than invented — see `gapNote()`. Pure function: payload in, HTML out.
+ * doesn't yet capture (site photos, building-condition detail) are rendered
+ * as an explicit, clearly-labeled gap rather than invented — see `gapNote()`.
+ * Legal-rights and planning-status notes (§5/§6) are free text the appraiser
+ * fills in themselves — the product doesn't integrate with the land registry
+ * or planning authority, so it gives them a place to record findings instead
+ * of fabricating a lookup. Pure function: payload in, HTML out.
  */
 
 const PROPERTY_TYPE_LABELS = {
@@ -271,7 +274,7 @@ function renderReportHtml(payload) {
     : gapNote('פרטי מזמין/ה השומה לא צוינו עבור דוח זה — ניתן להוסיפם בעת הפקת הדוח.')}
 
   <h2>2. מטרת השומה</h2>
-  <p class="section-lead">אמידת שווי שוק של הנכס שבנדון, לפי הגישה/ות שפורטו בסעיף 8 להלן.</p>
+  <p class="section-lead">אמידת שווי שוק של הנכס שבנדון, לפי הגישה/ות שפורטו בסעיף 9 להלן.</p>
   ${report?.purpose
     ? `<p class="section-lead">מטרת ההזמנה: ${escapeHtml(report.purpose)}</p>`
     : gapNote('מטרת הזמנה עסקית ספציפית (מכירה / משכנתא / דיווח חשבונאי וכד׳) לא צוינה עבור דוח זה — מוצג נוסח כללי בלבד.')}
@@ -314,9 +317,16 @@ function renderReportHtml(payload) {
   ${gapNote('שומה זו הופקה ללא תאריך ביקור מתועד בנכס. יש להשלים ביקור בנכס בהתאם לכללי האתיקה והתקינה המקצועית בטרם מסירת חוות דעת סופית.')}`}
 
   <h2>5. זכויות משפטיות בנכס</h2>
-  ${gapNote('נתוני בעלות/זכויות ואסמכתת רישום (נסח טאבו וכד׳) אינם נאספים כיום במוצר.')}
+  ${property.legalRightsNotes
+    ? `<p class="section-lead">${escapeHtml(property.legalRightsNotes).replace(/\n/g, '<br>')}</p>`
+    : gapNote('נתוני בעלות/זכויות ואסמכתת רישום (נסח טאבו וכד׳) אינם נאספים כיום במוצר.')}
 
-  <h2>6. תיאור כללי של הסביבה והבניין</h2>
+  <h2>6. מצב תכנוני</h2>
+  ${property.planningStatusNotes
+    ? `<p class="section-lead">${escapeHtml(property.planningStatusNotes).replace(/\n/g, '<br>')}</p>`
+    : gapNote('נתוני תב״ע/היתרי בנייה/זכויות בנייה נוספות אינם נאספים כיום במוצר.')}
+
+  <h2>7. תיאור כללי של הסביבה והבניין</h2>
   <table class="fields">
     <tr>
       <td class="label">יישוב</td>
@@ -333,7 +343,7 @@ function renderReportHtml(payload) {
   </table>
   ${gapNote('סוג בנייה, גימור חיצוני, מעלית, מספר כניסות ומצב אחזקת הרכוש המשותף אינם נאספים כיום.')}
 
-  <h2>7. תיאור הדירה / הנכס</h2>
+  <h2>8. תיאור הדירה / הנכס</h2>
   ${apartmentDescription(property)}
   <table class="fields">
     <tr>
@@ -351,7 +361,7 @@ function renderReportHtml(payload) {
   </table>
   ${gapNote('כיווני אוויר, נוף, מרפסת בנפרד ורמת גימור (ריצוף/מטבח/חלונות) אינם נאספים כיום כשדות נפרדים.')}
 
-  <h2>8. השומה</h2>
+  <h2>9. השומה</h2>
   <p class="section-lead">שיטת השומה שיושמה: ${escapeHtml(methodLabel(valuation.method))} · רמת ביטחון: ${escapeHtml(confidencePct)}%</p>
   ${valueBasesTable({ valuation, costBreakdown })}
   ${!costBreakdown ? gapNote('בסיסי שווי נוספים (עלות בנייה בערך כינון, אמדן שווי קרקע) מוצגים רק כאשר גישת העלות חושבה עבור שומה זו (שיטה "עלות" או "שילוב שיטות").') : ''}

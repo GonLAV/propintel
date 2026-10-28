@@ -24,6 +24,14 @@ const create = z.object({
   // Site-visit / determining date (מועד ביקור וקביעה) — separate from the
   // report-generation timestamp; a real appraiser visits once per case.
   visitDate: z.coerce.date().optional(),
+  // Legal rights status (מצב משפטי) and planning status (מצב תכנוני) — both
+  // required sections per תקן 1.1 §4/5.8. Free text: the appraiser transcribes
+  // the relevant facts from the land registry extract (נסח טאבו) and the
+  // planning authority themselves; this product doesn't integrate with those
+  // registries, so it gives the appraiser a place to record findings rather
+  // than inventing automated lookups it can't actually perform.
+  legalRightsNotes: z.string().max(4000).optional(),
+  planningStatusNotes: z.string().max(4000).optional(),
   metadata: z.record(z.any()).optional(),
 }).strict();
 
