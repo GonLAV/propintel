@@ -59,7 +59,7 @@ jobs:
         run: npm run security
       - name: Build
         env:
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3002
           NEXT_PUBLIC_DECISION_AUDIT_LOGS: 'false'
         run: npm run build
 

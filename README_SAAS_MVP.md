@@ -2,7 +2,7 @@
 
 Multi-tenant property appraisal SaaS:
 - **`saas-backend/`** — Node.js + Express + Postgres + Redis production-ready API
-- **`frontend/`** — React 18 + Vite SPA (created by `node frontend-bootstrap.mjs`)
+- **`frontend/`** — Next.js 16 app (originally scaffolded by `node frontend-bootstrap.mjs`, since rebuilt substantially — see `app/appraiser/*` for the real Hebrew/RTL appraiser experience)
 
 > **Note:** the legacy Spark/Vite app at the repo root (`src/`) is a separate
 > appraisal prototype. It's untouched by this MVP.
@@ -21,11 +21,10 @@ npm run dev          # http://localhost:3000
 
 ### 2. Frontend
 ```bash
-node frontend-bootstrap.mjs   # one-time: scaffolds frontend/
 cd frontend
 cp .env.example .env
 npm install
-npm run dev                   # http://localhost:5173
+npm run dev                   # http://localhost:3002
 ```
 
 ### 3. Or full stack via Docker
@@ -37,7 +36,7 @@ docker compose up --build
 ## Project layout
 ```
 saas-backend/         Node.js API (multi-tenant, JWT, RBAC, audit log, OWASP)
-frontend/             React SPA (created by frontend-bootstrap.mjs)
+frontend/             Next.js 16 app (originally scaffolded by frontend-bootstrap.mjs)
 .github/workflows/    CI for backend + frontend
 Makefile.saas         convenience targets
 frontend-bootstrap.mjs  generates frontend/ from a single script

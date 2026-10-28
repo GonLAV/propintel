@@ -10,7 +10,13 @@
 // on the frontend side too (today a session just expires after 15m and the
 // user re-logs in) and consider moving the token entirely server-side.
 
-export const BACKEND_URL = process.env.APPRAISER_API_URL || 'http://localhost:3001'
+// 2026-10-28: was defaulting to :3001, which has never matched saas-backend's
+// actual default (PORT=3000 in saas-backend/.env.example, Dockerfile, and
+// docker-compose.yml) -- combined with this app's own dev/start scripts also
+// binding to :3000, running the real full stack locally meant the frontend's
+// own server and the backend it proxies to fought over the same port. Fixed
+// both here (correct fallback) and in package.json (frontend moved to :3002).
+export const BACKEND_URL = process.env.APPRAISER_API_URL || 'http://localhost:3000'
 export const APPRAISER_TOKEN_COOKIE = 'appraiser_token'
 
 export async function backendFetch(path: string, init?: RequestInit) {
