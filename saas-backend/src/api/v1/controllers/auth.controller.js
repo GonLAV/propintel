@@ -79,6 +79,23 @@ async function me(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function changePassword(req, res, next) {
+  try {
+    await authService.changePassword({
+      tenantId: req.user.tenantId,
+      userId: req.user.id,
+      currentPassword: req.body.currentPassword,
+      newPassword: req.body.newPassword,
+    });
+    await writeAudit({
+      tenantId: req.user.tenantId, userId: req.user.id,
+      action: 'auth.password_changed',
+      ip: ipOf(req), userAgent: uaOf(req),
+    });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
 async function googleStart(req, res) {
   if (!config.oauth.google.clientId) {
     return res.status(501).json({
@@ -136,5 +153,5 @@ async function confirmPasswordReset(req, res, next) {
 module.exports = {
   register, login, refresh, logout, me,
   googleStart, googleCallback,
-  requestPasswordReset, confirmPasswordReset,
+  requestPasswordReset, confirmPasswordReset, changePassword,
 };

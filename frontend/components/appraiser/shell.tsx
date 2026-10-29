@@ -22,6 +22,7 @@ export function AppraiserShell({ children, userLabel }: { children: ReactNode; u
           <nav className="flex items-center gap-4 text-sm text-white/60">
             <Link href="/appraiser/properties" className="transition hover:text-white">נכסים</Link>
             <Link href="/appraiser/reports" className="transition hover:text-white">דוחות</Link>
+            <Link href="/appraiser/settings" className="transition hover:text-white">הגדרות</Link>
           </nav>
         </div>
         {userLabel && (

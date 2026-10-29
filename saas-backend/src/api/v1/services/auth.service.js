@@ -122,4 +122,24 @@ async function logout({ refreshToken }) {
   if (row && !row.revoked_at) await refreshRepo.revokeById(row.id);
 }
 
-module.exports = { register, login, refresh, logout, parseTtlMs };
+// Change your own password while logged in -- distinct from the forgot-
+// password email flow (passwordReset.service.js), which is for when you
+// can't log in at all. Until this existed there was no way to update your
+// password without going through the (currently email-unwired) reset flow.
+async function changePassword({ tenantId, userId, currentPassword, newPassword }) {
+  const hash = await usersRepo.findPasswordHash(tenantId, userId);
+  if (!hash) throw Unauthorized('Invalid credentials');
+  const ok = await bcrypt.compare(currentPassword, hash);
+  if (!ok) throw Unauthorized('Current password is incorrect');
+
+  const newHash = await bcrypt.hash(newPassword, config.bcryptRounds);
+  await usersRepo.update(tenantId, userId, { password_hash: newHash });
+
+  // Same security posture as a reset-confirm: a password change revokes all
+  // refresh-token sessions, forcing re-login everywhere (including any
+  // session an attacker may have). The caller's current access token stays
+  // valid until its own short TTL expires, same as reset-confirm.
+  await refreshRepo.revokeAllForUser(userId);
+}
+
+module.exports = { register, login, refresh, logout, changePassword, parseTtlMs };

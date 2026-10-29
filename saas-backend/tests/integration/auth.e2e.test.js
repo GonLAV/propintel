@@ -86,4 +86,58 @@ describe('auth end-to-end (real Postgres + Redis)', () => {
     expect(res.body.accessToken).toBeTruthy();
     expect(res.body.refreshToken).toBeTruthy();
   });
+
+  describe('change password (while logged in)', () => {
+    const newPassword = 'NewTestPass456!';
+    let accessToken;
+    let refreshToken;
+
+    beforeAll(async () => {
+      if (!dbReachable) return;
+      const login = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email, password, tenantSlug: slug });
+      accessToken = login.body.accessToken;
+      refreshToken = login.body.refreshToken;
+    });
+
+    test('rejects the wrong current password', async () => {
+      if (!dbReachable) return;
+      const res = await request(app)
+        .post('/api/v1/auth/password/change')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: 'TotallyWrongPassword1', newPassword });
+      expect(res.status).toBe(401);
+    });
+
+    test('changes the password, old password stops working, new password works, and other sessions are revoked', async () => {
+      if (!dbReachable) return;
+
+      const change = await request(app)
+        .post('/api/v1/auth/password/change')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: password, newPassword });
+      expect(change.status).toBe(200);
+      expect(change.body.ok).toBe(true);
+
+      // Old refresh token from before the change must be revoked.
+      const refreshWithOld = await request(app)
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken });
+      expect(refreshWithOld.status).toBe(401);
+
+      // Old password no longer authenticates.
+      const loginOld = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email, password, tenantSlug: slug });
+      expect(loginOld.status).toBe(401);
+
+      // New password does.
+      const loginNew = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email, password: newPassword, tenantSlug: slug });
+      expect(loginNew.status).toBe(200);
+      expect(loginNew.body.accessToken).toBeTruthy();
+    });
+  });
 });

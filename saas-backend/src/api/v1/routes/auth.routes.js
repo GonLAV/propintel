@@ -19,6 +19,8 @@ router.post('/password/reset/request', authLimiter,
   validate({ body: v.requestPasswordReset }), ctrl.requestPasswordReset);
 router.post('/password/reset/confirm', authLimiter,
   validate({ body: v.confirmPasswordReset }), ctrl.confirmPasswordReset);
+router.post('/password/change', authenticate, authLimiter,
+  validate({ body: v.changePassword }), ctrl.changePassword);
 
 router.get('/oauth/google',          ctrl.googleStart);
 router.get('/oauth/google/callback', ctrl.googleCallback);

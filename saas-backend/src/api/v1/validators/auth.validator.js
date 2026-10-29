@@ -41,4 +41,11 @@ const confirmPasswordReset = z.object({
   newPassword: password,
 }).strict();
 
-module.exports = { register, login, refresh, requestPasswordReset, confirmPasswordReset };
+const changePassword = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: password,
+}).strict();
+
+module.exports = {
+  register, login, refresh, requestPasswordReset, confirmPasswordReset, changePassword,
+};

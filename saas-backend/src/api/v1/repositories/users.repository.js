@@ -37,6 +37,18 @@ async function findById(tenantId, id) {
   return rows[0] || null;
 }
 
+// Deliberately separate from findById (which uses the SAFE column list) --
+// password_hash should only ever be fetched by the one call site that needs
+// to verify it (changing your own password while logged in).
+async function findPasswordHash(tenantId, id) {
+  const { rows } = await query(
+    `SELECT password_hash FROM users
+      WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+    [tenantId, id],
+  );
+  return rows[0]?.password_hash || null;
+}
+
 async function create(client, payload) {
   const {
     tenantId, email, passwordHash, fullName, licenseNumber = null, role = 'member', createdBy = null,
@@ -106,5 +118,5 @@ async function setLastLogin(id) {
 }
 
 module.exports = {
-  findByEmail, findByEmailGlobal, findById, create, list, update, softDelete, setLastLogin,
+  findByEmail, findByEmailGlobal, findById, findPasswordHash, create, list, update, softDelete, setLastLogin,
 };

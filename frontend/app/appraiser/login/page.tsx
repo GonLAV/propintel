@@ -45,6 +45,7 @@ export default function AppraiserLoginPage() {
           <Field label="סיסמה">
             <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </Field>
+          <Link href="/appraiser/forgot-password" className="-mt-2 text-sm text-teal-300 hover:underline">שכחת סיסמה?</Link>
           <Field label="קוד משרד (אופציונלי — רק אם יש כמה משרדים תחת אותו אימייל)">
             <Input value={tenantSlug} onChange={(e) => setTenantSlug(e.target.value)} placeholder="office-slug" />
           </Field>
