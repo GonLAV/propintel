@@ -2,8 +2,8 @@
 
 import { useEffect, useState, use as usePromise } from 'react'
 import { AppraiserShell } from '@/components/appraiser/shell'
-import { Card, Field, Input, Select, Textarea, Button, ErrorNote } from '@/components/appraiser/ui'
-import { apiGet, apiSend, formatILS, PROPERTY_TYPES, VALUATION_METHODS } from '@/lib/appraiser-client'
+import { Card, Field, Input, Select, Textarea, Button, ErrorNote, DateField } from '@/components/appraiser/ui'
+import { apiGet, apiSend, formatILS, translateValuationError, PROPERTY_TYPES, VALUATION_METHODS } from '@/lib/appraiser-client'
 
 type Property = {
   id: string; address: string; city: string; property_type: string
@@ -13,6 +13,7 @@ type Property = {
 }
 type Comparable = {
   id: string; area_sqm: string; sale_price: string; sold_at: string; floor: number | null
+  year_built: number | null
 }
 type Valuation = {
   id: string; method: string; status: string; estimated_value: string | null
@@ -31,8 +32,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [valuations, setValuations] = useState<Valuation[]>([])
   const [reports, setReports] = useState<Report[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [compForm, setCompForm] = useState({ areaSqm: '', salePrice: '', soldAt: '', floor: '', rooms: '' })
+  const [compForm, setCompForm] = useState({ areaSqm: '', salePrice: '', soldAt: '', floor: '', rooms: '', yearBuilt: '' })
   const [addingComp, setAddingComp] = useState(false)
+  const [deletingCompId, setDeletingCompId] = useState<string | null>(null)
   const [runningMethod, setRunningMethod] = useState<string | null>(null)
   const [generatingReportFor, setGeneratingReportFor] = useState<string | null>(null)
   const [reportFormFor, setReportFormFor] = useState<string | null>(null)
@@ -124,14 +126,29 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         soldAt: compForm.soldAt,
         floor: compForm.floor ? Number(compForm.floor) : undefined,
         rooms: compForm.rooms ? Number(compForm.rooms) : undefined,
+        yearBuilt: compForm.yearBuilt ? Number(compForm.yearBuilt) : undefined,
         source: 'ידני',
       })
-      setCompForm({ areaSqm: '', salePrice: '', soldAt: '', floor: '', rooms: '' })
+      setCompForm({ areaSqm: '', salePrice: '', soldAt: '', floor: '', rooms: '', yearBuilt: '' })
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בהוספת עסקת השוואה')
     } finally {
       setAddingComp(false)
+    }
+  }
+
+  async function deleteComparable(compId: string) {
+    if (!window.confirm('להסיר את עסקת ההשוואה הזו? פעולה זו משפיעה על כל השומות העתידיות לעיר/סוג הנכס הזה.')) return
+    setDeletingCompId(compId)
+    setError(null)
+    try {
+      await apiSend('DELETE', `/comparables/${compId}`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בהסרת עסקת ההשוואה')
+    } finally {
+      setDeletingCompId(null)
     }
   }
 
@@ -213,7 +230,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     ))}
                   </Select>
                 </Field>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <Field label="שטח (מ״ר)">
                     <Input type="number" min="0" step="0.1" value={editForm.areaSqm} onChange={(e) => setEditForm((f) => ({ ...f, areaSqm: e.target.value }))} />
                   </Field>
@@ -227,7 +244,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     <Input type="number" value={editForm.yearBuilt} onChange={(e) => setEditForm((f) => ({ ...f, yearBuilt: e.target.value }))} />
                   </Field>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <Field label="גוש">
                     <Input value={editForm.block} onChange={(e) => setEditForm((f) => ({ ...f, block: e.target.value }))} />
                   </Field>
@@ -238,9 +255,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     <Input value={editForm.subParcel} onChange={(e) => setEditForm((f) => ({ ...f, subParcel: e.target.value }))} />
                   </Field>
                 </div>
-                <Field label="מועד ביקור בנכס">
-                  <Input type="date" value={editForm.visitDate} onChange={(e) => setEditForm((f) => ({ ...f, visitDate: e.target.value }))} />
-                </Field>
+                <DateField label="מועד ביקור בנכס" value={editForm.visitDate} onChange={(v) => setEditForm((f) => ({ ...f, visitDate: v }))} />
                 <Field label="זכויות משפטיות בנכס">
                   <Textarea rows={3} value={editForm.legalRightsNotes} onChange={(e) => setEditForm((f) => ({ ...f, legalRightsNotes: e.target.value }))} />
                 </Field>
@@ -290,14 +305,29 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               <h2 className="mb-4 text-lg font-medium text-white">עסקאות השוואה ({comps.length})</h2>
               <div className="mb-4 flex flex-col gap-2 text-sm">
                 {comps.map((c) => (
-                  <div key={c.id} className="flex justify-between rounded-lg bg-white/5 px-3 py-2">
-                    <span>{c.area_sqm} מ״ר · קומה {c.floor ?? '—'}</span>
-                    <span className="text-white/60">{formatILS(c.sale_price)} · {new Date(c.sold_at).toLocaleDateString('he-IL')}</span>
+                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2">
+                    <span>{c.area_sqm} מ״ר · קומה {c.floor ?? '—'}{c.year_built ? ` · נבנה ${c.year_built}` : ''}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/60">{formatILS(c.sale_price)} · {new Date(c.sold_at).toLocaleDateString('he-IL')}</span>
+                      <button
+                        type="button"
+                        onClick={() => deleteComparable(c.id)}
+                        disabled={deletingCompId !== null}
+                        title="הסרת עסקת השוואה"
+                        className="shrink-0 rounded-md px-1.5 py-0.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                      >
+                        {deletingCompId === c.id ? '…' : '✕'}
+                      </button>
+                    </div>
                   </div>
                 ))}
-                {comps.length === 0 && <p className="text-white/40">אין עדיין עסקאות השוואה לעיר/סוג הנכס הזה.</p>}
+                {comps.length === 0 && (
+                  <p className="text-white/40">
+                    אין עסקאות השוואה לעיר/סוג הנכס הזה בטווח 24 החודשים האחרונים (אם הוזנו עסקאות ישנות יותר, הן אינן מוצגות כאן).
+                  </p>
+                )}
               </div>
-              <form onSubmit={addComparable} className="grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
+              <form onSubmit={addComparable} className="grid grid-cols-1 gap-2 border-t border-white/10 pt-4 sm:grid-cols-2">
                 <Field label="שטח (מ״ר)">
                   <Input type="number" step="0.1" required value={compForm.areaSqm}
                     onChange={(e) => setCompForm((f) => ({ ...f, areaSqm: e.target.value }))} />
@@ -306,13 +336,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   <Input type="number" required value={compForm.salePrice}
                     onChange={(e) => setCompForm((f) => ({ ...f, salePrice: e.target.value }))} />
                 </Field>
-                <Field label="תאריך מכירה">
-                  <Input type="date" required value={compForm.soldAt}
-                    onChange={(e) => setCompForm((f) => ({ ...f, soldAt: e.target.value }))} />
-                </Field>
+                <DateField label="תאריך מכירה" required value={compForm.soldAt}
+                  onChange={(v) => setCompForm((f) => ({ ...f, soldAt: v }))} />
                 <Field label="קומה">
                   <Input type="number" value={compForm.floor}
                     onChange={(e) => setCompForm((f) => ({ ...f, floor: e.target.value }))} />
+                </Field>
+                <Field label="שנת בנייה (אופציונלי)">
+                  <Input type="number" value={compForm.yearBuilt}
+                    onChange={(e) => setCompForm((f) => ({ ...f, yearBuilt: e.target.value }))} />
                 </Field>
                 <Button type="submit" variant="ghost" disabled={addingComp} className="col-span-2">
                   {addingComp ? 'מוסיף/ה…' : '+ הוספת עסקת השוואה'}
@@ -337,7 +369,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-white">{VALUATION_METHODS[v.method] || v.method}</span>
                       <span className={v.status === 'completed' ? 'text-teal-300' : 'text-red-300'}>
-                        {v.status === 'completed' ? formatILS(v.estimated_value) : v.error || 'נכשל'}
+                        {v.status === 'completed' ? formatILS(v.estimated_value) : translateValuationError(v.error)}
                       </span>
                     </div>
                     {v.status === 'completed' && (

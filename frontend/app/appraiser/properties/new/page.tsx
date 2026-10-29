@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppraiserShell } from '@/components/appraiser/shell'
-import { Card, Field, Input, Select, Textarea, Button, ErrorNote } from '@/components/appraiser/ui'
+import { Card, Field, Input, Select, Textarea, Button, ErrorNote, DateField } from '@/components/appraiser/ui'
 import { apiSend, PROPERTY_TYPES } from '@/lib/appraiser-client'
 
 export default function NewPropertyPage() {
@@ -67,7 +67,7 @@ export default function NewPropertyPage() {
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Field label="שטח (מ״ר)">
               <Input type="number" min="0" step="0.1" value={form.areaSqm} onChange={(e) => set('areaSqm', e.target.value)} />
             </Field>
@@ -81,7 +81,7 @@ export default function NewPropertyPage() {
               <Input type="number" value={form.yearBuilt} onChange={(e) => set('yearBuilt', e.target.value)} />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="גוש">
               <Input value={form.block} onChange={(e) => set('block', e.target.value)} />
             </Field>
@@ -92,9 +92,7 @@ export default function NewPropertyPage() {
               <Input value={form.subParcel} onChange={(e) => set('subParcel', e.target.value)} />
             </Field>
           </div>
-          <Field label="מועד ביקור בנכס (אופציונלי)">
-            <Input type="date" value={form.visitDate} onChange={(e) => set('visitDate', e.target.value)} />
-          </Field>
+          <DateField label="מועד ביקור בנכס (אופציונלי)" value={form.visitDate} onChange={(v) => set('visitDate', v)} />
           <Field label="זכויות משפטיות בנכס (אופציונלי, לפי נסח טאבו)">
             <Textarea rows={3} value={form.legalRightsNotes} onChange={(e) => set('legalRightsNotes', e.target.value)}
               placeholder="לדוגמה: בעלות מלאה, נקי משעבודים והערות אזהרה, לפי נסח טאבו מיום..." />

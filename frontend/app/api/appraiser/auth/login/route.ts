@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { backendFetch, APPRAISER_TOKEN_COOKIE } from '@/lib/appraiser-backend'
+import { translateAuthError } from '@/lib/i18n-errors'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -11,7 +12,8 @@ export async function POST(request: Request) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    return NextResponse.json({ error: data?.error?.message || 'התחברות נכשלה' }, { status: res.status })
+    const message = data?.error?.message
+    return NextResponse.json({ error: message ? translateAuthError(message) : 'התחברות נכשלה' }, { status: res.status })
   }
 
   const response = NextResponse.json({ user: data.user })

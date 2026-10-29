@@ -24,9 +24,14 @@ export const viewport: Viewport = {
   themeColor: '#05070d',
 }
 
+// lang="he": the real, primary surface (app/appraiser/*) is Hebrew -- the
+// English demo dashboard under this same root layout is legacy/unused. dir
+// stays LTR at the root (unaffected by lang) and is set to rtl specifically
+// in app/appraiser/layout.tsx, so this doesn't touch the old dashboard's
+// visual layout, only document-language metadata.
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="he" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   )

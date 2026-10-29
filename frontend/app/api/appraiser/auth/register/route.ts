@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { backendFetch, APPRAISER_TOKEN_COOKIE } from '@/lib/appraiser-backend'
+import { translateAuthError } from '@/lib/i18n-errors'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -14,10 +15,13 @@ export async function POST(request: Request) {
     const detail = Array.isArray(data?.error?.details)
       ? data.error.details.map((d: { path: string; message: string }) => `${d.path}: ${d.message}`).join(', ')
       : null
-    return NextResponse.json({ error: detail || data?.error?.message || 'ההרשמה נכשלה' }, { status: res.status })
+    const message = data?.error?.message
+    return NextResponse.json({ error: detail || (message ? translateAuthError(message) : 'ההרשמה נכשלה') }, { status: res.status })
   }
 
-  const response = NextResponse.json({ user: data.user, tenant: data.tenant })
+  const response = NextResponse.json({
+    user: data.user, tenant: data.tenant, otherTenantsExist: Boolean(data.otherTenantsExist),
+  })
   response.cookies.set(APPRAISER_TOKEN_COOKIE, data.accessToken, {
     httpOnly: true,
     sameSite: 'lax',

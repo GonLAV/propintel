@@ -43,6 +43,21 @@ export const VALUATION_METHODS: Record<string, string> = {
   reconciled: 'משוקללת',
 }
 
+export { translateValuationError, translateAuthError } from './i18n-errors'
+
+// A native <input type="date">'s value is always the ISO "YYYY-MM-DD" per
+// spec, regardless of what format the browser's picker widget displays --
+// so this is a safe, locale-proof way to show the date back unambiguously
+// (DD.MM.YYYY, matching how dates render everywhere else in this app)
+// right next to a field whose native widget may render MM/DD/YYYY.
+export function formatDateInputPreview(value: string | null | undefined): string | null {
+  if (!value) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!m) return null
+  const [, y, mo, d] = m
+  return `${d}.${mo}.${y}`
+}
+
 export function formatILS(value: number | string | null | undefined) {
   if (value === null || value === undefined) return '—'
   const n = Number(value)
