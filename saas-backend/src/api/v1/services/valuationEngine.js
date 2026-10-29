@@ -55,7 +55,13 @@ function adjustComparable(comp, subject, asOf) {
   }
 
   // Size: small properties trade at premium per sqm; ±0.4% per sqm of size delta, capped ±8%.
-  if (Number.isFinite(subject.area_sqm) && Number.isFinite(comp.area_sqm)) {
+  // area_sqm is a Postgres `numeric` column -> comes back as a string, so
+  // Number.isFinite(subject.area_sqm) alone is always false (unlike floor/
+  // year_built, which are `integer` and arrive as real numbers already).
+  // Coerce before the finite check, not just inside it, or this silently
+  // never applies -- exactly what happened here until 2026-10-29, caught
+  // only once the comparables table started exposing per-adjustment detail.
+  if (Number.isFinite(Number(subject.area_sqm)) && Number.isFinite(Number(comp.area_sqm))) {
     const delta = Number(comp.area_sqm) - Number(subject.area_sqm);
     const f = clamp(delta * 0.0008, -0.08, 0.08);
     adjustedPpsm *= 1 + f;

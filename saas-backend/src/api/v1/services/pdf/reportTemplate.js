@@ -92,6 +92,22 @@ function gapNote(text) {
   return `<p class="gap-note">${escapeHtml(text)}</p>`;
 }
 
+const ADJUSTMENT_LABELS = { time: 'זמן', floor: 'קומה', age: 'גיל', size: 'שטח' };
+
+// §5.11/5.12 בתקן 1.1 דורשים חשיפת מסד-הנתונים/ההתאמות "בפורמט מלא" — לא
+// רק התוצאה הסופית. כל התאמה (זמן/קומה/גיל/שטח) כבר מחושבת בפועל
+// (adjustComparable ב-valuationEngine.js); זו רק חשיפתה, לא חישוב חדש.
+function formatAdjustments(adjustments) {
+  if (!Array.isArray(adjustments) || adjustments.length === 0) return '—';
+  return adjustments
+    .map((a) => {
+      const pct = (Number(a.factor) - 1) * 100;
+      const sign = pct >= 0 ? '+' : '';
+      return `${ADJUSTMENT_LABELS[a.name] || a.name} ${sign}${pct.toFixed(1)}%`;
+    })
+    .join(' · ');
+}
+
 function comparablesTable(comps, currency) {
   if (!Array.isArray(comps) || comps.length === 0) return '';
   const rows = comps.map((c) => `
@@ -99,6 +115,7 @@ function comparablesTable(comps, currency) {
       <td>${escapeHtml(formatDate(c.soldAt))}</td>
       <td>${escapeHtml(formatNumber(c.areaSqm))}</td>
       <td>${escapeHtml(formatCurrency(c.salePrice, currency))}</td>
+      <td class="small">${escapeHtml(formatAdjustments(c.adjustments))}</td>
       <td>${escapeHtml(formatCurrency(Math.round(c.adjustedPpsm), currency))}</td>
     </tr>`).join('');
   return `
@@ -108,6 +125,7 @@ function comparablesTable(comps, currency) {
           <th>תאריך מכירה</th>
           <th>שטח (מ״ר)</th>
           <th>מחיר מכירה</th>
+          <th>התאמות שהוחלו</th>
           <th>מחיר מותאם למ״ר</th>
         </tr>
       </thead>
@@ -237,6 +255,7 @@ function renderReportHtml(payload) {
   }
   table.grid { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 6px; }
   table.grid th, table.grid td { border: 1px solid #ddd; padding: 6px 8px; text-align: center; }
+  table.grid td.small { font-size: 9.5px; color: #555; }
   table.grid th { background: #f0f7f2; color: #14532d; }
   table.grid.bases .basis-label { text-align: right; color: #333; width: 65%; }
   table.grid.bases .basis-value { text-align: left; font-weight: 700; }

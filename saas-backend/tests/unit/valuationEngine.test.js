@@ -52,6 +52,31 @@ describe('valuationEngine', () => {
       expect(out.breakdown.sampleSize).toBe(4);
       expect(out.breakdown.adjusted).toHaveLength(4);
     });
+
+    // Regression: area_sqm is a Postgres `numeric` column and comes back as
+    // a string from the repository layer (e.g. "80.00"), not a JS number --
+    // unlike floor/year_built, which are `integer` and arrive as real
+    // numbers. Number.isFinite does not coerce strings, so a size-adjustment
+    // guard written as `Number.isFinite(subject.area_sqm)` without an inner
+    // Number() first silently never applies, for every valuation, with no
+    // error. Every other test in this file uses plain number literals for
+    // area_sqm and would not have caught this.
+    test('applies the size adjustment with string area_sqm (real Postgres shape)', () => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const stringSubject = { ...subjectApt, area_sqm: '80.00' };
+      const comps = [
+        { id: 'c1', sale_price: '2400000.00', area_sqm: '95.00', floor: 3, year_built: 2008, sold_at: `${yyyy - 1}-06-01` },
+      ];
+      const out = comparablesValuation({ subject: stringSubject, comps });
+      const sizeAdjustment = out.breakdown.adjusted[0].adjustments.find((a) => a.name === 'size');
+      expect(sizeAdjustment).toBeDefined();
+      // Smaller properties trade at a premium per sqm, so a comp 15 sqm
+      // larger than the subject gets its price/sqm adjusted *up* -- toward
+      // what it would likely have sold for at the subject's (smaller, more
+      // premium-commanding) size.
+      expect(sizeAdjustment.factor).toBeGreaterThan(1);
+    });
   });
 
   describe('costApproachValuation', () => {
