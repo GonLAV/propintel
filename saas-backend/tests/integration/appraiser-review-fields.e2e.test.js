@@ -203,4 +203,36 @@ describe('appraiser-review follow-up fields (real Postgres + Redis)', () => {
     expect(text).toContain('פרטי מזמין/ה השומה לא צוינו');
     expect(text).toContain('מטרת הזמנה עסקית ספציפית');
   }, 30000);
+
+  // Regression coverage for the property-edit capability added in response
+  // to the "get this ready for real users" round — until now there was no
+  // way to fix a typo after creating a property.
+  test('PATCH /properties/:id updates fields and can clear an optional one to null', async () => {
+    if (!dbReachable) return;
+
+    const updated = await request(app)
+      .patch(`/api/v1/properties/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ address: 'רחוב יפו 100 כניסה ב', block: null });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.address).toBe('רחוב יפו 100 כניסה ב');
+    expect(updated.body.block).toBeNull();
+    // Untouched fields survive the partial update.
+    expect(updated.body.parcel).toBe(parcel);
+    expect(updated.body.city).toBe(city);
+
+    const fetched = await request(app)
+      .get(`/api/v1/properties/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(fetched.body.address).toBe('רחוב יפו 100 כניסה ב');
+    expect(fetched.body.block).toBeNull();
+
+    // Restore for any later test in this file that might rely on the
+    // original address/block.
+    await request(app)
+      .patch(`/api/v1/properties/${propertyId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ address, block });
+  });
 });

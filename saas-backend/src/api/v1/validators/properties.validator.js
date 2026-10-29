@@ -35,7 +35,17 @@ const create = z.object({
   metadata: z.record(z.any()).optional(),
 }).strict();
 
-const update = create.partial();
+// Editing a property (unlike creating one) needs to be able to clear a
+// previously-set optional field, not just leave it unspecified -- .partial()
+// alone only allows omitting a key, Zod's .optional() does not accept
+// `null`. Re-declare the clearable text fields as explicitly nullable here.
+const update = create.partial().extend({
+  block: z.string().max(32).nullable().optional(),
+  parcel: z.string().max(32).nullable().optional(),
+  subParcel: z.string().max(32).nullable().optional(),
+  legalRightsNotes: z.string().max(4000).nullable().optional(),
+  planningStatusNotes: z.string().max(4000).nullable().optional(),
+});
 
 const list = z.object({
   q: z.string().max(120).optional(),

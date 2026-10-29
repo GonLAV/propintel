@@ -37,6 +37,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [generatingReportFor, setGeneratingReportFor] = useState<string | null>(null)
   const [reportFormFor, setReportFormFor] = useState<string | null>(null)
   const [reportForm, setReportForm] = useState({ clientName: '', purpose: '', principlesNotes: '' })
+  const [editing, setEditing] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editForm, setEditForm] = useState({
+    address: '', city: '', propertyType: 'apartment',
+    areaSqm: '', rooms: '', floor: '', yearBuilt: '',
+    block: '', parcel: '', subParcel: '', visitDate: '',
+    legalRightsNotes: '', planningStatusNotes: '',
+  })
 
   async function load() {
     try {
@@ -58,6 +66,49 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   }
 
   useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function startEditing() {
+    if (!property) return
+    setEditForm({
+      address: property.address, city: property.city, propertyType: property.property_type,
+      areaSqm: property.area_sqm ?? '', rooms: property.rooms ?? '',
+      floor: property.floor === null || property.floor === undefined ? '' : String(property.floor),
+      yearBuilt: property.year_built ? String(property.year_built) : '',
+      block: property.block ?? '', parcel: property.parcel ?? '', subParcel: property.sub_parcel ?? '',
+      visitDate: property.visit_date ? property.visit_date.slice(0, 10) : '',
+      legalRightsNotes: property.legal_rights_notes ?? '', planningStatusNotes: property.planning_status_notes ?? '',
+    })
+    setEditing(true)
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingEdit(true)
+    setError(null)
+    try {
+      const payload: Record<string, unknown> = {
+        address: editForm.address, city: editForm.city, propertyType: editForm.propertyType,
+      }
+      if (editForm.areaSqm) payload.areaSqm = Number(editForm.areaSqm)
+      if (editForm.rooms) payload.rooms = Number(editForm.rooms)
+      if (editForm.floor) payload.floor = Number(editForm.floor)
+      if (editForm.yearBuilt) payload.yearBuilt = Number(editForm.yearBuilt)
+      payload.block = editForm.block || null
+      payload.parcel = editForm.parcel || null
+      payload.subParcel = editForm.subParcel || null
+      if (editForm.visitDate) payload.visitDate = editForm.visitDate
+      payload.legalRightsNotes = editForm.legalRightsNotes || null
+      payload.planningStatusNotes = editForm.planningStatusNotes || null
+
+      await apiSend('PATCH', `/properties/${id}`, payload)
+      setEditing(false)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בעדכון פרטי הנכס')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   async function addComparable(e: React.FormEvent) {
     e.preventDefault()
@@ -131,42 +182,107 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       <ErrorNote message={error} />
       {property && (
         <>
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-white">{property.address}</h1>
-            <p className="text-white/50">
-              {property.city} · {PROPERTY_TYPES[property.property_type]}
-              {property.area_sqm ? ` · ${property.area_sqm} מ״ר` : ''}
-              {property.rooms ? ` · ${property.rooms} חדרים` : ''}
-            </p>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-white">{property.address}</h1>
+              <p className="text-white/50">
+                {property.city} · {PROPERTY_TYPES[property.property_type]}
+                {property.area_sqm ? ` · ${property.area_sqm} מ״ר` : ''}
+                {property.rooms ? ` · ${property.rooms} חדרים` : ''}
+              </p>
+            </div>
+            {!editing && (
+              <Button variant="ghost" onClick={startEditing}>✎ עריכת פרטי נכס</Button>
+            )}
           </div>
 
-          <Card className="mb-6 p-5">
-            <h2 className="mb-3 text-lg font-medium text-white">זיהוי ותיעוד</h2>
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-white/50">גוש / חלקה / תת-חלקה: </span>
-                <span className="text-white">
-                  {property.block || property.parcel || property.sub_parcel
-                    ? `${property.block || '—'} / ${property.parcel || '—'} / ${property.sub_parcel || '—'}`
-                    : 'לא צוין'}
-                </span>
+          {editing ? (
+            <Card className="mb-6 p-5">
+              <h2 className="mb-3 text-lg font-medium text-white">עריכת פרטי נכס</h2>
+              <form onSubmit={saveEdit} className="flex flex-col gap-4">
+                <Field label="כתובת">
+                  <Input required value={editForm.address} onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))} />
+                </Field>
+                <Field label="עיר">
+                  <Input required value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} />
+                </Field>
+                <Field label="סוג נכס">
+                  <Select value={editForm.propertyType} onChange={(e) => setEditForm((f) => ({ ...f, propertyType: e.target.value }))}>
+                    {Object.entries(PROPERTY_TYPES).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="שטח (מ״ר)">
+                    <Input type="number" min="0" step="0.1" value={editForm.areaSqm} onChange={(e) => setEditForm((f) => ({ ...f, areaSqm: e.target.value }))} />
+                  </Field>
+                  <Field label="חדרים">
+                    <Input type="number" min="0" step="0.5" value={editForm.rooms} onChange={(e) => setEditForm((f) => ({ ...f, rooms: e.target.value }))} />
+                  </Field>
+                  <Field label="קומה">
+                    <Input type="number" value={editForm.floor} onChange={(e) => setEditForm((f) => ({ ...f, floor: e.target.value }))} />
+                  </Field>
+                  <Field label="שנת בנייה">
+                    <Input type="number" value={editForm.yearBuilt} onChange={(e) => setEditForm((f) => ({ ...f, yearBuilt: e.target.value }))} />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <Field label="גוש">
+                    <Input value={editForm.block} onChange={(e) => setEditForm((f) => ({ ...f, block: e.target.value }))} />
+                  </Field>
+                  <Field label="חלקה">
+                    <Input value={editForm.parcel} onChange={(e) => setEditForm((f) => ({ ...f, parcel: e.target.value }))} />
+                  </Field>
+                  <Field label="תת חלקה">
+                    <Input value={editForm.subParcel} onChange={(e) => setEditForm((f) => ({ ...f, subParcel: e.target.value }))} />
+                  </Field>
+                </div>
+                <Field label="מועד ביקור בנכס">
+                  <Input type="date" value={editForm.visitDate} onChange={(e) => setEditForm((f) => ({ ...f, visitDate: e.target.value }))} />
+                </Field>
+                <Field label="זכויות משפטיות בנכס">
+                  <Textarea rows={3} value={editForm.legalRightsNotes} onChange={(e) => setEditForm((f) => ({ ...f, legalRightsNotes: e.target.value }))} />
+                </Field>
+                <Field label="מצב תכנוני">
+                  <Textarea rows={3} value={editForm.planningStatusNotes} onChange={(e) => setEditForm((f) => ({ ...f, planningStatusNotes: e.target.value }))} />
+                </Field>
+                <ErrorNote message={error} />
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1" disabled={savingEdit}>{savingEdit ? 'שומר/ת…' : 'שמירת שינויים'}</Button>
+                  <Button type="button" variant="ghost" disabled={savingEdit} onClick={() => { setEditing(false); setError(null) }}>ביטול</Button>
+                </div>
+              </form>
+            </Card>
+          ) : (
+            <Card className="mb-6 p-5">
+              <h2 className="mb-3 text-lg font-medium text-white">זיהוי ותיעוד</h2>
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-white/50">גוש / חלקה / תת-חלקה: </span>
+                  <span className="text-white">
+                    {property.block || property.parcel || property.sub_parcel
+                      ? `${property.block || '—'} / ${property.parcel || '—'} / ${property.sub_parcel || '—'}`
+                      : 'לא צוין'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-white/50">מועד ביקור בנכס: </span>
+                  <span className="text-white">
+                    {property.visit_date ? new Date(property.visit_date).toLocaleDateString('he-IL') : 'לא תועד'}
+                  </span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-white/50">זכויות משפטיות: </span>
+                  <span className="text-white">{property.legal_rights_notes || 'לא תועד'}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-white/50">מצב תכנוני: </span>
+                  <span className="text-white">{property.planning_status_notes || 'לא תועד'}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-white/50">מועד ביקור בנכס: </span>
-                <span className="text-white">
-                  {property.visit_date ? new Date(property.visit_date).toLocaleDateString('he-IL') : 'לא תועד'}
-                </span>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-white/50">זכויות משפטיות: </span>
-                <span className="text-white">{property.legal_rights_notes || 'לא תועד'}</span>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-white/50">מצב תכנוני: </span>
-                <span className="text-white">{property.planning_status_notes || 'לא תועד'}</span>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* Comparable sales */}
