@@ -224,23 +224,31 @@ function renderReportHtml(payload) {
     direction: rtl;
   }
   h1 { font-size: 20px; color: #14532d; margin: 0 0 2px; }
+  /* Section heading spacing is the single biggest contributor to a report
+     overflowing its natural page count: there are a dozen-plus of these in
+     a typical report, so even a few px of margin per heading compounds into
+     enough "dead space" to strand a short trailing section (the appendix)
+     alone on an otherwise near-empty final page. Measured directly against
+     a real rendered report (not guessed): trimming this was the single
+     biggest lever in closing that gap. */
   h2 {
     font-size: 14px;
     color: #14532d;
     border-bottom: 1px solid #d8d8d8;
     padding-bottom: 4px;
-    margin: 20px 0 8px;
+    margin: 14px 0 6px;
   }
+  h3 { font-size: 12.5px; color: #14532d; margin: 10px 0 4px; }
   .opening { margin-bottom: 4px; }
-  .opening .meta-line { display: flex; justify-content: space-between; color: #444; font-size: 11.5px; margin-bottom: 10px; }
-  .opening .subject { text-decoration: underline; font-weight: 700; margin: 10px 0 8px; }
+  .opening .meta-line { display: flex; justify-content: space-between; color: #444; font-size: 11.5px; margin-bottom: 6px; }
+  .opening .subject { text-decoration: underline; font-weight: 700; margin: 8px 0 6px; }
   .disclaimer {
     font-weight: 700;
     background: #fafafa;
     border: 1px solid #e2e2e2;
     border-radius: 4px;
-    padding: 10px 12px;
-    margin: 10px 0 4px;
+    padding: 8px 12px;
+    margin: 8px 0 4px;
     font-size: 11px;
   }
   .section-lead { margin: 0 0 8px; }
@@ -261,17 +269,24 @@ function renderReportHtml(payload) {
   table.grid.bases .basis-value { text-align: left; font-weight: 700; }
   table.grid.bases tr:first-child .basis-value { font-size: 15px; color: #14532d; }
   table.fields { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-  table.fields td { padding: 4px; vertical-align: top; width: 25%; }
+  table.fields td { padding: 3px 4px; vertical-align: top; width: 25%; }
   table.fields td.label { color: #666; font-size: 10.5px; }
-  table.fields tr td.value { font-weight: 600; padding-bottom: 8px; }
+  table.fields tr td.value { font-weight: 600; padding-bottom: 6px; }
   ol.conditions { margin: 0; padding-inline-start: 20px; font-size: 11px; }
-  ol.conditions li { margin-bottom: 5px; }
-  .declaration { margin-top: 16px; font-size: 11.5px; }
-  .signature { margin-top: 24px; }
-  .signature .line { margin-top: 34px; border-top: 1px solid #333; width: 220px; padding-top: 4px; }
-  .appendix { margin-top: 26px; padding-top: 10px; border-top: 2px solid #14532d; }
-  .appendix .footnote { font-size: 10px; color: #666; margin-top: 6px; }
-  .photos-note { font-size: 10.5px; color: #666; }
+  ol.conditions li { margin-bottom: 3px; }
+  .declaration { margin-top: 12px; font-size: 11.5px; }
+  .signature { margin-top: 16px; break-inside: avoid; }
+  .signature .line { margin-top: 24px; border-top: 1px solid #333; width: 220px; padding-top: 4px; }
+  /* Appendix A is short (one field + a footnote) -- kept as one unit with
+     the photos-note that follows it so pagination can't strand just its
+     heading alone at the bottom of a page, and margin-top trimmed from the
+     original 26px: that plus the signature's spacing above was enough
+     "dead space" on a typical report to push this whole short block onto
+     an otherwise near-empty trailing page instead of fitting on the
+     previous one (confirmed by rendering a real report before/after). */
+  .appendix { margin-top: 10px; padding-top: 8px; border-top: 2px solid #14532d; break-inside: avoid; }
+  .appendix .footnote { font-size: 10px; color: #666; margin-top: 4px; }
+  .photos-note { font-size: 10.5px; color: #666; margin-top: 6px; }
 </style>
 </head>
 <body>

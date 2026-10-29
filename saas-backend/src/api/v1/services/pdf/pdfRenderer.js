@@ -61,8 +61,15 @@ async function renderHtmlToPdf(html, opts = {}) {
       format: 'A4',
       printBackground: true,
       displayHeaderFooter: hasHeaderFooter,
+      // top/bottom trimmed from the original 22mm/18mm: the header/footer
+      // are a single 8px line of text each and only need a fraction of
+      // that, and the slack was a meaningful contributor (compounding per
+      // page) to short trailing sections spilling onto an otherwise
+      // near-empty final page. Verified against a real rendered report
+      // that this still leaves clear room above/below the header/footer
+      // text, not just enough to avoid clipping it.
       margin: hasHeaderFooter
-        ? { top: '22mm', bottom: '18mm', left: '14mm', right: '14mm' }
+        ? { top: '16mm', bottom: '14mm', left: '14mm', right: '14mm' }
         : { top: '14mm', bottom: '14mm', left: '14mm', right: '14mm' },
       ...opts,
     });

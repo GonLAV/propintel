@@ -30,8 +30,8 @@ async function create(tenantId, { propertyId, method, inputs, createdBy }) {
       });
     }
     const out = runValuation({ subject: property, method, comps, inputs: inputs || {} });
-    if (!out) {
-      valuation = await repo.fail(tenantId, valuation.id, 'Insufficient inputs (areaSqm required)');
+    if (out.failed) {
+      valuation = await repo.fail(tenantId, valuation.id, out.reason);
       metrics.counter('valuations_total', { method, status: 'failed' });
     } else {
       valuation = await repo.complete(tenantId, valuation.id, out);

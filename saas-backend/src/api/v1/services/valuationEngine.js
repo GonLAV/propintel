@@ -76,7 +76,16 @@ function comparablesValuation({ subject, comps, asOf = new Date() }) {
     return { value: null, confidence: 0, breakdown: { reason: 'subject area_sqm required' } };
   }
   if (!Array.isArray(comps) || comps.length === 0) {
-    return { value: null, confidence: 0, breakdown: { reason: 'no comparables' } };
+    return {
+      value: null,
+      confidence: 0,
+      // The caller (comparables.repository.js#findSimilar) applies a
+      // lookback-window filter (default 2 years) before comps ever reach
+      // here, so an empty array can mean "none on record" or "some exist
+      // but are older than the window" -- this function can't tell which,
+      // so the message must not claim certainty either way.
+      breakdown: { reason: 'No comparable sales found for this city/property type within the lookback window (default: last 24 months)' },
+    };
   }
 
   const adjusted = comps.map((c) => {
@@ -303,7 +312,15 @@ function reconciledValuation({ subject, comps, inputs }) {
 
 /**
  * Run a valuation given a method and supporting data.
- * Returns { estimatedValue, currency, confidence, result } or null when not enough data.
+ * Returns { failed: false, estimatedValue, currency, confidence, result } on
+ * success, or { failed: true, reason } when there isn't enough data -- the
+ * caller must surface `reason`, not invent a generic message. Before this,
+ * every failure (missing area, zero comparables within the lookback window,
+ * etc.) was flattened into a single bare `null`, which led the API layer to
+ * show "Insufficient inputs (areaSqm required)" even when the subject
+ * property had an area and the real problem was e.g. no comparable sales
+ * within the default 2-year window -- caught during a real appraiser
+ * workflow test, not by inspection.
  */
 function runValuation({ subject, method, comps = [], inputs = {} }) {
   let out;
@@ -314,8 +331,11 @@ function runValuation({ subject, method, comps = [], inputs = {} }) {
     case 'reconciled':  out = reconciledValuation({ subject, comps, inputs }); break;
     default: throw new Error(`Unknown valuation method: ${method}`);
   }
-  if (out.value === null) return null;
+  if (out.value === null) {
+    return { failed: true, reason: out.breakdown?.reason || 'Unable to compute a value for this method' };
+  }
   return {
+    failed: false,
     estimatedValue: out.value,
     currency: subject.currency || 'ILS',
     confidence: out.confidence,

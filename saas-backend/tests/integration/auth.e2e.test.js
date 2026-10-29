@@ -140,4 +140,46 @@ describe('auth end-to-end (real Postgres + Redis)', () => {
       expect(loginNew.body.accessToken).toBeTruthy();
     });
   });
+
+  // Regression: register()'s otherTenantsExist check queries through the
+  // plain (non-transactional) pool while the just-created user's own INSERT
+  // is still uncommitted on the transaction's dedicated client -- so that
+  // query never sees the row it just created, only other, already-committed
+  // users with the same email. A first draft of this check used
+  // `matches.length > 1` (treating the result as "me + others"), which is
+  // off by one: it's actually just "others", so that version silently never
+  // fired for any real duplicate. Mocked-DB tests can't catch this -- it only
+  // shows up against a real Postgres transaction, same class of bug as the
+  // register->refresh-token test above.
+  describe('duplicate email across separate tenants', () => {
+    const slugA = `e2e-dup-a-${randomUUID().slice(0, 8)}`;
+    const slugB = `e2e-dup-b-${randomUUID().slice(0, 8)}`;
+    const dupEmail = `${slugA}@propintel.test`;
+
+    afterAll(async () => {
+      if (dbReachable) {
+        await pool.query('DELETE FROM tenants WHERE slug IN ($1, $2)', [slugA, slugB]).catch(() => {});
+      }
+    });
+
+    test('first registration with a fresh email reports no other tenants', async () => {
+      if (!dbReachable) return;
+      const res = await request(app).post('/api/v1/auth/register').send({
+        email: dupEmail, password, fullName: 'Dup A', tenantName: 'Dup Tenant A', tenantSlug: slugA,
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.otherTenantsExist).toBe(false);
+    });
+
+    test('second registration with the same email (different tenant) reports other tenants exist', async () => {
+      if (!dbReachable) return;
+      const res = await request(app).post('/api/v1/auth/register').send({
+        email: dupEmail, password, fullName: 'Dup B', tenantName: 'Dup Tenant B', tenantSlug: slugB,
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.otherTenantsExist).toBe(true);
+      // Both tenants are real and independent -- not blocked, just flagged.
+      expect(res.body.tenant.slug).toBe(slugB);
+    });
+  });
 });

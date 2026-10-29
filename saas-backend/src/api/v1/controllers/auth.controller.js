@@ -25,6 +25,7 @@ async function register(req, res, next) {
       tenant: result.tenant,
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
+      otherTenantsExist: result.otherTenantsExist,
     });
   } catch (err) { next(err); }
 }

@@ -162,13 +162,28 @@ describe('valuationEngine', () => {
     test('throws on unknown method', () => {
       expect(() => runValuation({ subject: subjectApt, method: 'magic' })).toThrow();
     });
-    test('returns null when inputs insufficient', () => {
-      expect(runValuation({
+    test('returns a tagged failure with a real reason when inputs are insufficient', () => {
+      const out = runValuation({
         subject: { property_type: 'apartment' }, method: 'cost',
-      })).toBeNull();
+      });
+      expect(out.failed).toBe(true);
+      expect(typeof out.reason).toBe('string');
+      expect(out.reason.length).toBeGreaterThan(0);
+    });
+    test('comparables failure reason mentions the lookback window, not a generic area message', () => {
+      // Regression: before this, a missing-comparables failure was
+      // collapsed into the same hardcoded "Insufficient inputs (areaSqm
+      // required)" message as a missing-area failure, even when the
+      // subject property plainly had an area -- caught in a real appraiser
+      // workflow test, not by code inspection.
+      const out = runValuation({ subject: subjectApt, method: 'comparables', comps: [] });
+      expect(out.failed).toBe(true);
+      expect(out.reason).not.toMatch(/areaSqm/);
+      expect(out.reason.toLowerCase()).toMatch(/comparable/);
     });
     test('returns full envelope for cost method', () => {
       const out = runValuation({ subject: subjectApt, method: 'cost' });
+      expect(out.failed).toBe(false);
       expect(out.estimatedValue).toBeGreaterThan(0);
       expect(out.currency).toBe('ILS');
       expect(out.confidence).toBeGreaterThan(0);

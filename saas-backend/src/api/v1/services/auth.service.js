@@ -52,7 +52,24 @@ async function register({
     const { token: refreshToken } = await issueRefreshToken({
       userId: user.id, tenantId: tenant.id, ip, userAgent, client,
     });
-    return { user, tenant, accessToken, refreshToken };
+    // Same email can legitimately exist under more than one tenant (e.g. an
+    // appraiser running two separate offices) -- not blocked. But until now
+    // this was completely silent: a mistyped tenantSlug (or just forgetting
+    // an existing office) created a second, disconnected tenant with no
+    // indication anything unusual happened. Flag it here (reusing the same
+    // lookup login() already does for its multi-tenant-ambiguity check, so
+    // this adds no new account-enumeration surface -- it only runs after a
+    // real registration has already succeeded) so the UI can tell the user.
+    // This lookup runs on a separate (non-transactional) connection while
+    // the current INSERT is still uncommitted on `client`, so it never sees
+    // the user just created above -- only other, already-committed users
+    // with this email. That means "any row at all" is the right test, not
+    // "more than one": a bare length check against 1 would silently never
+    // fire (this was caught live, not by inspection -- the off-by-one only
+    // shows up by actually running two real registrations back to back).
+    const others = await usersRepo.findByEmailGlobal(email);
+    const otherTenantsExist = others.length > 0;
+    return { user, tenant, accessToken, refreshToken, otherTenantsExist };
   });
 }
 

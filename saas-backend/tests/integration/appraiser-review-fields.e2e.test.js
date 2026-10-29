@@ -143,7 +143,16 @@ describe('appraiser-review follow-up fields (real Postgres + Redis)', () => {
     expect(pdfRes.status).toBe(200);
     expect(pdfRes.body.slice(0, 5).toString('latin1')).toBe('%PDF-');
 
-    const { text } = await pdfParse(pdfRes.body);
+    const { text, numpages } = await pdfParse(pdfRes.body);
+
+    // Regression (Uri's UX review, agent-hq/appraiser-review.md): this
+    // report shape (4 comparables, both parcel and legal/planning notes,
+    // a disclaimer block) used to overflow onto a 3rd page holding only
+    // the short area-calculation appendix, 75%+ blank -- an unprofessional
+    // "orphaned" trailing page in a document meant to be printed/signed.
+    // Tightened heading/section spacing and page margins (reportTemplate.js,
+    // pdfRenderer.js) so this now fits on 2 pages.
+    expect(numpages).toBe(2);
 
     // 1. Client + purpose (מזמין/מטרה) — real values, not the gap-note placeholder.
     expect(text).toContain(clientName);
