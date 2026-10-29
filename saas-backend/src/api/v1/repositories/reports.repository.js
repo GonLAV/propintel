@@ -3,17 +3,17 @@
 const { query } = require('../../../config/database');
 
 const COLS = `id, tenant_id, valuation_id, title, format, payload, storage_url,
-              client_name, purpose, created_at, updated_at, created_by`;
+              client_name, purpose, principles_notes, created_at, updated_at, created_by`;
 
 async function create(tenantId, {
-  valuationId, title, format, payload, createdBy, clientName, purpose,
+  valuationId, title, format, payload, createdBy, clientName, purpose, principlesNotes,
 }) {
   const { rows } = await query(
-    `INSERT INTO reports (tenant_id, valuation_id, title, format, payload, created_by, client_name, purpose)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+    `INSERT INTO reports (tenant_id, valuation_id, title, format, payload, created_by, client_name, purpose, principles_notes)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9)
      RETURNING ${COLS}`,
     [tenantId, valuationId, title, format, JSON.stringify(payload || {}), createdBy || null,
-      clientName || null, purpose || null],
+      clientName || null, purpose || null, principlesNotes || null],
   );
   return rows[0];
 }

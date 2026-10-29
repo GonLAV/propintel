@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use as usePromise } from 'react'
 import { AppraiserShell } from '@/components/appraiser/shell'
-import { Card, Field, Input, Select, Button, ErrorNote } from '@/components/appraiser/ui'
+import { Card, Field, Input, Select, Textarea, Button, ErrorNote } from '@/components/appraiser/ui'
 import { apiGet, apiSend, formatILS, PROPERTY_TYPES, VALUATION_METHODS } from '@/lib/appraiser-client'
 
 type Property = {
@@ -36,7 +36,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [runningMethod, setRunningMethod] = useState<string | null>(null)
   const [generatingReportFor, setGeneratingReportFor] = useState<string | null>(null)
   const [reportFormFor, setReportFormFor] = useState<string | null>(null)
-  const [reportForm, setReportForm] = useState({ clientName: '', purpose: '' })
+  const [reportForm, setReportForm] = useState({ clientName: '', purpose: '', principlesNotes: '' })
 
   async function load() {
     try {
@@ -108,10 +108,11 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         format: 'pdf',
         ...(reportForm.clientName ? { clientName: reportForm.clientName } : {}),
         ...(reportForm.purpose ? { purpose: reportForm.purpose } : {}),
+        ...(reportForm.principlesNotes ? { principlesNotes: reportForm.principlesNotes } : {}),
       })
       window.open(`/api/appraiser/reports/${report.id}/pdf`, '_blank')
       setReportFormFor(null)
-      setReportForm({ clientName: '', purpose: '' })
+      setReportForm({ clientName: '', purpose: '', principlesNotes: '' })
       const r = await apiGet<{ items: Report[] }>(`/reports?propertyId=${id}`)
       setReports(r.items)
     } catch (err) {
@@ -247,6 +248,11 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                                 <option value="הליך משפטי">הליך משפטי</option>
                                 <option value="אחר">אחר</option>
                               </Select>
+                            </Field>
+                            <Field label="עקרונות ושיקולים נוספים (אופציונלי)">
+                              <Textarea rows={2} value={reportForm.principlesNotes}
+                                onChange={(e) => setReportForm((f) => ({ ...f, principlesNotes: e.target.value }))}
+                                placeholder="שיקולים מקצועיים נוספים מעבר לסיכום האוטומטי — לדוגמה: מגמת שוק מקומית, מאפיינים ייחודיים לנכס..." />
                             </Field>
                             <div className="flex gap-2">
                               <Button className="flex-1" disabled={generatingReportFor !== null}

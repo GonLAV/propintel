@@ -80,6 +80,75 @@ function extractCostBreakdown(valuation) {
   return null;
 }
 
+// "עקרונות, גורמים ושיקולים" (תקן 1.1 §5.10) — the standard leaves this
+// section's content to the appraiser's own judgment, with no fixed wording
+// to quote (unlike the conflict-of-interest declaration). Rather than invent
+// generic boilerplate, this describes the actual calculation that was
+// performed: real numbers already in valuation.result, never fabricated.
+// Returns one sentence per underlying method actually run (handles
+// 'reconciled' by describing each sub-method it weighted together).
+const METHOD_WEIGHT_LABELS = {
+  comparables: 'השוואת מכירות', cost: 'גישת העלות', income: 'גישת ההיוון',
+};
+
+function principlesSentenceFor(method, breakdown) {
+  switch (method) {
+    case 'comparables': {
+      const n = breakdown.sampleSize;
+      const cv = breakdown.coefficientOfVariation;
+      const spread = cv == null ? null : cv < 0.1 ? 'נמוך' : cv < 0.25 ? 'בינוני' : 'גבוה';
+      return `גישת ההשוואה: נותחו ${n ?? '—'} עסקאות השוואה, לאחר התאמות זמן, קומה, גיל בניין ושטח. `
+        + `נעשה שימוש בחציון מחיר-למ"ר המתואם (ולא בממוצע) כדי להפחית את השפעת חריגים`
+        + (spread ? `; פיזור המחירים המתואמים בין העסקאות היה ${spread}.` : '.');
+    }
+    case 'cost': {
+      // Raw land has no building to depreciate — a distinct, simpler
+      // breakdown shape (landRatePerSqm + area only, no replacementCost/
+      // depreciationPct/landValueSource).
+      if (breakdown.landValueSource === undefined && breakdown.landRatePerSqm !== undefined) {
+        return `גישת העלות (קרקע פנויה): שווי הנכס נגזר ישירות מתעריף שווי-קרקע למ"ר, ללא רכיב כינון/פחת של מבנה.`;
+      }
+      const depPct = breakdown.depreciationPct != null ? Math.round(breakdown.depreciationPct * 100) : null;
+      const landSrc = breakdown.landValueSource === 'market-abstraction'
+        ? 'אמדן שווי הקרקע התבסס על ניתוח עסקאות השוואה מקומיות (שיטת הפחתה/ייחוס), לא על טבלת תעריפים כללית'
+        : 'אמדן שווי הקרקע התבסס על טבלת תעריפים ארצית, בהיעדר מספיק עסקאות-השוואה מקומיות לביסוס אמדן ספציפי';
+      return `גישת העלות: שווי הנכס נגזר מעלות כינון/הקמה מחדש של המבנה`
+        + (depPct != null ? `, בניכוי פחת של כ-${depPct}% בהתאם לגיל המבנה` : '')
+        + `, בתוספת אמדן שווי הקרקע. ${landSrc}.`;
+    }
+    case 'income': {
+      const capPct = breakdown.capRate != null ? (breakdown.capRate * 100).toFixed(1) : null;
+      const sourceNote = breakdown.rentPerSqmMonth && breakdown.capRate
+        ? 'נתוני השכירות ושיעור ההיוון סופקו ספציפית לנכס זה'
+        : 'בהיעדר נתוני שכירות/היוון ספציפיים לנכס, הופעלו ערכי ברירת-מחדל שמרניים לפי סוג הנכס — יש לעדכנם בנתונים אמיתיים טרם מסירת חוות דעת סופית';
+      return `גישת ההיוון: שווי הנכס נגזר מהיוון ההכנסה התפעולית נטו (לאחר תפוסה-ריקה והוצאות תפעול) `
+        + `בשיעור היוון של ${capPct != null ? `${capPct}%` : '—'}. ${sourceNote}.`;
+    }
+    default:
+      return null;
+  }
+}
+
+function extractPrinciplesSummary(valuation) {
+  const result = valuation.result || {};
+  if (valuation.method === 'reconciled') {
+    const methods = result.methods || [];
+    const sentences = methods
+      .map((m) => principlesSentenceFor(m.method, m.breakdown || {}))
+      .filter(Boolean);
+    const weights = methods
+      .map((m) => `${METHOD_WEIGHT_LABELS[m.method] || m.method} (${Math.round((m.weight || 0) * 100)}%)`)
+      .join(', ');
+    if (sentences.length === 0) return null;
+    return [
+      ...sentences,
+      `השווי הסופי משקלל ${methods.length} שיטות עצמאיות, במשקלים המשקפים הן את התאמת השיטה לסוג הנכס והן את רמת הביטחון שהניבה כל שיטה בנפרד: ${weights}.`,
+    ];
+  }
+  const sentence = principlesSentenceFor(valuation.method, result);
+  return sentence ? [sentence] : null;
+}
+
 function renderMarkdown(p) {
   const lines = [
     `# Appraisal Report`,
@@ -101,7 +170,7 @@ function renderMarkdown(p) {
 }
 
 async function create(tenantId, {
-  valuationId, title, format, createdBy, clientName, purpose,
+  valuationId, title, format, createdBy, clientName, purpose, principlesNotes,
 }) {
   const valuation = await valRepo.findById(tenantId, valuationId);
   if (!valuation) throw NotFound('Valuation not found');
@@ -115,7 +184,7 @@ async function create(tenantId, {
   const payload = format === 'markdown' ? { ...base, markdown: renderMarkdown(base) } : base;
 
   let report = await repo.create(tenantId, {
-    valuationId, title, format, payload, createdBy, clientName, purpose,
+    valuationId, title, format, payload, createdBy, clientName, purpose, principlesNotes,
   });
 
   if (format === 'pdf') {
@@ -148,6 +217,8 @@ async function create(tenantId, {
       comparables: extractComparables(valuation),
       reconciliation: extractReconciliation(valuation),
       costBreakdown: extractCostBreakdown(valuation),
+      principlesSummary: extractPrinciplesSummary(valuation),
+      principlesNotes: report.principles_notes,
     });
     try {
       const pdfBuffer = await renderHtmlToPdf(html, { headerTemplate, footerTemplate });

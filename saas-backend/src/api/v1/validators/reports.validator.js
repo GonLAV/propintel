@@ -14,6 +14,12 @@ const create = z.object({
   // placeholder is rendered in the PDF when absent, never invented.
   clientName: z.string().min(1).max(255).optional(),
   purpose: z.string().min(1).max(255).optional(),
+  // Appraiser's own professional narrative for the "עקרונות, גורמים
+  // ושיקולים" section (תקן 1.1 §5.10) — additive to the factual summary the
+  // system derives automatically from the actual valuation breakdown (see
+  // extractPrinciplesSummary in reports.service.js). Optional free text,
+  // same pattern as clientName/purpose.
+  principlesNotes: z.string().max(4000).optional(),
 }).strict();
 
 const list = z.object({
