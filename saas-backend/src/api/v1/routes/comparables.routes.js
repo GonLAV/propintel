@@ -19,4 +19,8 @@ router.post('/',
   authorize('owner', 'admin', 'member'),
   validate({ body: v.create }), ctrl.create);
 
+router.delete('/:id',
+  authorize('owner', 'admin', 'member'),
+  validate({ params: v.idParam }), ctrl.remove);
+
 module.exports = router;

@@ -15,6 +15,7 @@ const update = z.object({
   fullName: z.string().min(1).max(120).optional(),
   status: z.enum(['active', 'disabled', 'pending']).optional(),
   phone: z.string().min(3).max(40).optional(),
+  licenseNumber: z.string().min(1).max(64).nullable().optional(),
 }).strict();
 
 const changeRole = z.object({

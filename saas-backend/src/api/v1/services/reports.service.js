@@ -91,13 +91,35 @@ const METHOD_WEIGHT_LABELS = {
   comparables: 'השוואת מכירות', cost: 'גישת העלות', income: 'גישת ההיוון',
 };
 
+const ADJUSTMENT_TYPE_LABELS = { time: 'זמן', floor: 'קומה', age: 'גיל בניין', size: 'שטח' };
+
+// Which adjustment types actually fired across the comps used, in the
+// engine's own fixed order -- not a hardcoded list. age/size only apply
+// when both the subject and the comp have that field populated
+// (adjustComparable in valuationEngine.js), which isn't guaranteed (e.g.
+// the comparable-entry form doesn't collect yearBuilt), so a report where
+// no comp had an age match must not claim an age adjustment was applied.
+function appliedAdjustmentTypes(adjustedComps) {
+  const seen = new Set();
+  (adjustedComps || []).forEach((c) => {
+    (c.adjustments || []).forEach((a) => seen.add(a.name));
+  });
+  return ['time', 'floor', 'age', 'size']
+    .filter((name) => seen.has(name))
+    .map((name) => ADJUSTMENT_TYPE_LABELS[name]);
+}
+
 function principlesSentenceFor(method, breakdown) {
   switch (method) {
     case 'comparables': {
       const n = breakdown.sampleSize;
       const cv = breakdown.coefficientOfVariation;
       const spread = cv == null ? null : cv < 0.1 ? 'נמוך' : cv < 0.25 ? 'בינוני' : 'גבוה';
-      return `גישת ההשוואה: נותחו ${n ?? '—'} עסקאות השוואה, לאחר התאמות זמן, קומה, גיל בניין ושטח. `
+      const types = appliedAdjustmentTypes(breakdown.adjusted);
+      const typesText = types.length
+        ? `לאחר התאמות ${types.join(', ')}`
+        : 'ללא התאמות נוספות מעבר למחיר הגולמי למ"ר';
+      return `גישת ההשוואה: נותחו ${n ?? '—'} עסקאות השוואה, ${typesText}. `
         + `נעשה שימוש בחציון מחיר-למ"ר המתואם (ולא בממוצע) כדי להפחית את השפעת חריגים`
         + (spread ? `; פיזור המחירים המתואמים בין העסקאות היה ${spread}.` : '.');
     }

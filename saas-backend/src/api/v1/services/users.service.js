@@ -21,9 +21,10 @@ async function getById(tenantId, id) {
 
 async function update(tenantId, id, fields) {
   const dbFields = {};
-  if (fields.fullName !== undefined) dbFields.full_name = fields.fullName;
-  if (fields.status !== undefined)   dbFields.status = fields.status;
-  if (fields.phone !== undefined)    dbFields.phone_encrypted = encrypt(fields.phone);
+  if (fields.fullName !== undefined)     dbFields.full_name = fields.fullName;
+  if (fields.status !== undefined)       dbFields.status = fields.status;
+  if (fields.phone !== undefined)        dbFields.phone_encrypted = encrypt(fields.phone);
+  if (fields.licenseNumber !== undefined) dbFields.license_number = fields.licenseNumber;
   const u = await usersRepo.update(tenantId, id, dbFields);
   if (!u) throw NotFound('User not found');
   return u;

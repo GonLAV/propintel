@@ -25,4 +25,6 @@ const list = z.object({
   sinceDays: z.coerce.number().int().min(1).max(3650).default(730),
 }).strict();
 
-module.exports = { create, list };
+const idParam = z.object({ id: z.string().uuid() }).strict();
+
+module.exports = { create, list, idParam };

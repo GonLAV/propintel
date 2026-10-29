@@ -46,4 +46,22 @@ async function insert(tenantId, payload) {
   return rows[0];
 }
 
-module.exports = { findSimilar, insert };
+async function findById(tenantId, id) {
+  const { rows } = await query(
+    `SELECT ${COLS} FROM comparable_sales
+      WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+    [tenantId, id],
+  );
+  return rows[0] || null;
+}
+
+async function softDelete(tenantId, id) {
+  const { rowCount } = await query(
+    `UPDATE comparable_sales SET deleted_at = now()
+      WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+    [tenantId, id],
+  );
+  return rowCount > 0;
+}
+
+module.exports = { findSimilar, insert, findById, softDelete };

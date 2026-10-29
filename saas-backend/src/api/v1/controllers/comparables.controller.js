@@ -21,4 +21,16 @@ async function list(req, res, next) {
   catch (err) { next(err); }
 }
 
-module.exports = { create, list };
+async function remove(req, res, next) {
+  try {
+    await svc.remove(req.user.tenantId, req.params.id);
+    await writeAudit({
+      tenantId: req.user.tenantId, userId: req.user.id, action: 'comparable.delete',
+      entity: 'comparable_sale', entityId: req.params.id,
+      ip: req.ip, userAgent: req.headers['user-agent'],
+    });
+    res.status(204).send();
+  } catch (err) { next(err); }
+}
+
+module.exports = { create, list, remove };

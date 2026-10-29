@@ -61,7 +61,14 @@ async function requestReset({ email, tenantSlug, ip, userAgent }) {
       resetUrlPreview: `https://app.example.com/reset?token=${token.slice(0, 8)}…`,
     }, 'password reset email would be sent');
     if (!config.isProd) {
-      logger.debug({ token }, 'DEV ONLY — full reset token');
+      // Was logger.debug -- both .env and .env.example ship LOG_LEVEL=info,
+      // which is above pino's debug level, so this never actually printed
+      // under the project's own default dev settings (caught in a real
+      // appraiser workflow test, not code inspection). Already gated by
+      // !config.isProd above, so info level here still never reaches a
+      // production log; it just needs to be visible in the common case
+      // where someone forgot to lower LOG_LEVEL locally.
+      logger.info({ token }, 'DEV ONLY — full reset token (no email provider configured yet)');
     }
   }
 
