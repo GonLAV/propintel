@@ -21,8 +21,19 @@ export const BACKEND_URL = process.env.APPRAISER_API_URL || 'http://localhost:30
 export const APPRAISER_TOKEN_COOKIE = 'appraiser_token'
 export const APPRAISER_REFRESH_COOKIE = 'appraiser_refresh'
 
-const ACCESS_TOKEN_MAX_AGE = 60 * 15 // matches saas-backend JWT_ACCESS_TTL default (15m)
 const REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 7 // matches JWT_REFRESH_TTL default (7d)
+// Deliberately NOT the JWT's own 15m TTL (JWT_ACCESS_TTL) -- the JWT's `exp`
+// claim still enforces real expiry server-side no matter how long the
+// cookie survives in the browser. Matching the two (as this used to) meant
+// the browser deleted the cookie itself at the exact moment the JWT
+// expired, so no request carrying it was ever sent again -- the proxy's
+// retry-on-401 silent-refresh below never got a 401 to react to in
+// ordinary use (only in a crafted-token test, which changes the cookie's
+// *value* but not its lifetime). A real ~17-minute idle gap with untouched
+// cookies reproduced this live: the access cookie needs to physically
+// outlive the token it carries for exactly as long as the session is
+// meant to silently survive at all -- i.e. as long as the refresh cookie.
+const ACCESS_TOKEN_MAX_AGE = REFRESH_TOKEN_MAX_AGE
 
 export async function backendFetch(path: string, init?: RequestInit) {
   return fetch(`${BACKEND_URL}${path}`, {

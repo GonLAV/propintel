@@ -375,7 +375,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   <Input type="number" value={compForm.yearBuilt}
                     onChange={(e) => setCompForm((f) => ({ ...f, yearBuilt: e.target.value }))} />
                 </Field>
-                <Button type="submit" variant="ghost" disabled={addingComp} className="col-span-2">
+                {/* sm:col-span-2, not col-span-2: this grid is grid-cols-1 below
+                    the sm: breakpoint, i.e. only ONE explicit column exists
+                    there. An unconditional col-span-2 still demands spanning
+                    two columns at that width, so CSS Grid silently manufactures
+                    a second, content-auto-sized implicit column to satisfy it --
+                    defeating the single-column mobile layout for every field in
+                    this form (confirmed live: this one class was the entire
+                    cause, not a Tailwind compile issue -- see Uri's finding). */}
+                <Button type="submit" variant="ghost" disabled={addingComp} className="sm:col-span-2">
                   {addingComp ? 'מוסיף/ה…' : '+ הוספת עסקת השוואה'}
                 </Button>
               </form>
@@ -398,9 +406,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               <div className="flex flex-col gap-2">
                 {valuations.map((v) => (
                   <div key={v.id} className="rounded-lg bg-white/5 px-3 py-3 text-sm">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                       <span className="font-medium text-white">{VALUATION_METHODS[v.method] || v.method}</span>
-                      <span className={v.status === 'completed' ? 'text-teal-300' : 'text-red-300'}>
+                      <span className={`text-right ${v.status === 'completed' ? 'text-teal-300' : 'text-red-300'}`}>
                         {v.status === 'completed' ? formatILS(v.estimated_value) : translateValuationError(v.error)}
                       </span>
                     </div>

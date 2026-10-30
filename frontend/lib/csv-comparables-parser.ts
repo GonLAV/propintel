@@ -51,7 +51,18 @@ function parseCsvLine(line: string): string[] {
 // ambiguity this product avoids elsewhere (see DateField).
 function parseDateFlexible(raw: string): string | null {
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
-  if (iso) return raw
+  if (iso) {
+    // Regression: this branch used to accept any 4-2-2 digit shape with no
+    // range check at all (e.g. "2026-13-40", month 13) -- the preview
+    // marked such a row "valid" even though the server correctly rejected
+    // it, so the one check meant to build confidence before import gave a
+    // false green light (found via realistic malformed input, not
+    // inspection). Same day/month bounds as the DD/MM branch below.
+    const [, , m, d] = iso
+    const day = Number(d)
+    const month = Number(m)
+    return day >= 1 && day <= 31 && month >= 1 && month <= 12 ? raw : null
+  }
   const il = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(raw)
   if (il) {
     const [, d, m, y] = il

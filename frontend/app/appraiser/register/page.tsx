@@ -4,20 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, Field, Input, Button, ErrorNote } from '@/components/appraiser/ui'
-
-// Office names here are almost always Hebrew, so an ASCII-only slugify of
-// the name itself would often come back empty. Fall back to a short random
-// id in that case rather than send the backend an invalid/empty slug.
-function slugify(value: string) {
-  const ascii = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-  return ascii || `office-${Math.random().toString(36).slice(2, 8)}`
-}
+import { slugify } from '@/lib/slugify'
 
 export default function AppraiserRegisterPage() {
   const router = useRouter()

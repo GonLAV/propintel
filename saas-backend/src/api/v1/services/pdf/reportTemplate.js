@@ -92,6 +92,16 @@ function gapNote(text) {
   return `<p class="gap-note">${escapeHtml(text)}</p>`;
 }
 
+// A licence number mixing digits with a letter (e.g. "60321-C") can render
+// with the segments visually reversed inside this RTL signature line
+// unless explicitly bidi-isolated -- same fix as the dir="ltr" date inputs
+// elsewhere in this app, just for PDF output. Found live by rendering the
+// signed PDF to an image, not by reading the extracted text.
+function licenseLine(licenseNumber) {
+  if (!licenseNumber) return '';
+  return `, מספר רישיון <span dir="ltr">${escapeHtml(licenseNumber)}</span>`;
+}
+
 const ADJUSTMENT_LABELS = { time: 'זמן', floor: 'קומה', age: 'גיל', size: 'שטח' };
 
 // §5.11/5.12 בתקן 1.1 דורשים חשיפת מסד-הנתונים/ההתאמות "בפורמט מלא" — לא
@@ -444,7 +454,7 @@ function renderReportHtml(payload) {
     <p>ולראיה באתי על החתום,</p>
     <div class="line">
       ${escapeHtml(appraiserName)}<br>
-      שמאי/ת מקרקעין${appraiser?.licenseNumber ? `, מספר רישיון ${escapeHtml(appraiser.licenseNumber)}` : ''}
+      שמאי/ת מקרקעין${licenseLine(appraiser?.licenseNumber)}
     </div>
   </div>
 

@@ -61,6 +61,17 @@ describe('parseCsv (bulk comparable-sale import)', () => {
     expect(rows[3].error).toContain('תאריך לא תקין')
   })
 
+  it('rejects an impossible ISO date (month 13) instead of showing it as valid in the preview', () => {
+    // Regression: the ISO branch used to accept any 4-2-2 digit shape with
+    // no range check, so the preview marked this row "valid" even though
+    // the server correctly rejected it on import (found live, not by
+    // inspection) -- the one check meant to build pre-import confidence
+    // gave a false green light.
+    const csv = 'שטח,מחיר,תאריך\n80,2000000,2026-13-40'
+    const { rows } = parseCsv(csv)
+    expect(rows[0].error).toContain('תאריך לא תקין')
+  })
+
   it('treats a garbage optional field as simply absent, not a row error', () => {
     const csv = 'שטח,מחיר,תאריך,קומה\n80,2000000,01/01/2025,garbage-floor'
     const { rows } = parseCsv(csv)
