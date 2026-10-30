@@ -34,6 +34,8 @@ const AUTH_ERROR_MAP: Array<[RegExp, string]> = [
   // refresh attempt has also failed -- this is a fallback for any other
   // path that might still surface the raw backend string.
   [/^(invalid or expired token|missing bearer token)$/i, 'החיבור פג תוקף — יש להתחבר מחדש'],
+  [/^invalid or expired invite$/i, 'קישור ההזמנה אינו תקין או שפג תוקפו — יש לבקש הזמנה חדשה ממנהל/ת המשרד'],
+  [/^only an owner can invite a new owner$/i, 'רק בעל/ת המשרד יכול/ה להזמין בעלים נוספים'],
 ]
 
 export function translateAuthError(message: string | null | undefined): string {
