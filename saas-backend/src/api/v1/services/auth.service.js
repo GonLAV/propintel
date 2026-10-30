@@ -107,15 +107,53 @@ async function login({ email, password, tenantSlug, ip, userAgent }) {
   };
 }
 
+// A client can legitimately race itself: several API calls fired around
+// the same moment all hold the same (about to rotate) refresh token --
+// ordinary page-load behavior, not an attack. Without this grace window,
+// whichever request loses that race gets "reuse detected" and the entire
+// token family is revoked, silently destroying a session that a moment
+// earlier looked completely healthy (several requests had just received
+// valid, working rotated tokens of their own). This is the standard,
+// documented mitigation for refresh-token-rotation races (see e.g. Auth0's
+// "refresh token reuse interval"): only treat reuse of an already-rotated
+// token as theft once it's stale beyond a short window. A real stolen
+// token, used later/elsewhere, still triggers full reuse-detection below --
+// this only narrows the window, it doesn't remove the protection.
+const REFRESH_REUSE_GRACE_MS = 10_000;
+const REFRESH_CHAIN_MAX_HOPS = 10;
+
+async function findLiveHeadWithinGrace(row) {
+  const revokedMsAgo = Date.now() - new Date(row.revoked_at).getTime();
+  if (revokedMsAgo > REFRESH_REUSE_GRACE_MS) return null;
+
+  let current = row;
+  for (let hop = 0; hop < REFRESH_CHAIN_MAX_HOPS; hop += 1) {
+    if (!current.replaced_by_id) return null;
+    // eslint-disable-next-line no-await-in-loop
+    const next = await refreshRepo.findById(current.replaced_by_id);
+    if (!next) return null;
+    if (!next.revoked_at) {
+      return new Date(next.expires_at).getTime() > Date.now() ? next : null;
+    }
+    current = next;
+  }
+  return null;
+}
+
 async function refresh({ refreshToken, ip, userAgent }) {
   const hash = sha256(refreshToken);
-  const row = await refreshRepo.findByHash(hash);
+  let row = await refreshRepo.findByHash(hash);
   if (!row) throw Unauthorized('Invalid refresh token');
 
   if (row.revoked_at) {
-    // Reuse of a revoked token: revoke entire family (likely theft).
-    await refreshRepo.revokeFamily(row.family_id);
-    throw Unauthorized('Refresh token reuse detected');
+    const liveHead = await findLiveHeadWithinGrace(row);
+    if (!liveHead) {
+      // Stale reuse outside the grace window, or a broken/expired chain:
+      // treat as likely theft, revoke the entire family.
+      await refreshRepo.revokeFamily(row.family_id);
+      throw Unauthorized('Refresh token reuse detected');
+    }
+    row = liveHead;
   }
   if (new Date(row.expires_at).getTime() < Date.now()) {
     throw Unauthorized('Refresh token expired');

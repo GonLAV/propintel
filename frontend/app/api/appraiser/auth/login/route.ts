@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { backendFetch, APPRAISER_TOKEN_COOKIE } from '@/lib/appraiser-backend'
+import { backendFetch, setAuthCookies } from '@/lib/appraiser-backend'
 import { translateAuthError } from '@/lib/i18n-errors'
 
 export async function POST(request: Request) {
@@ -17,12 +17,6 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ user: data.user })
-  response.cookies.set(APPRAISER_TOKEN_COOKIE, data.accessToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 15,
-    path: '/',
-  })
+  setAuthCookies(response.cookies, { accessToken: data.accessToken, refreshToken: data.refreshToken })
   return response
 }

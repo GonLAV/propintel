@@ -22,6 +22,20 @@ async function findByHash(tokenHash) {
   return rows[0] || null;
 }
 
+// Looked up by primary key, not hash -- used to walk the replaced_by_id
+// chain when a caller legitimately raced itself and presented an
+// already-rotated token (see refresh()'s grace-period handling). We never
+// have the plaintext of a replacement token (only its hash is stored), so
+// this is the only way to inspect it.
+async function findById(id) {
+  const { rows } = await query(
+    `SELECT id, user_id, tenant_id, family_id, expires_at, revoked_at, replaced_by_id
+       FROM refresh_tokens WHERE id = $1`,
+    [id],
+  );
+  return rows[0] || null;
+}
+
 async function revokeById(id, replacedById = null) {
   await query(
     `UPDATE refresh_tokens
@@ -48,4 +62,4 @@ async function revokeAllForUser(userId) {
   );
 }
 
-module.exports = { insert, findByHash, revokeById, revokeFamily, revokeAllForUser };
+module.exports = { insert, findByHash, findById, revokeById, revokeFamily, revokeAllForUser };

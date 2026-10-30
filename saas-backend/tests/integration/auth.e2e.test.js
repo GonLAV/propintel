@@ -182,4 +182,84 @@ describe('auth end-to-end (real Postgres + Redis)', () => {
       expect(res.body.tenant.slug).toBe(slugB);
     });
   });
+
+  // Regression: refresh-token rotation is single-use by design (reusing an
+  // already-rotated token revokes the whole family -- theft detection). But
+  // a real client can legitimately race itself: several API calls fired
+  // around the same moment all present the same about-to-expire refresh
+  // token (ordinary page-load behavior, not an attack). Caught live, not by
+  // inspection: firing 5 concurrent requests through the frontend's silent-
+  // refresh proxy with one shared refresh token initially destroyed the
+  // entire session (every participant's freshly-rotated token came back
+  // dead too) -- the race's "loser" triggered family-wide revocation that
+  // also nuked the "winners'" brand-new tokens. The fix is the standard,
+  // documented mitigation for this exact race (see e.g. Auth0's "refresh
+  // token reuse interval"): a short grace window where reusing an
+  // already-rotated token walks forward to the current live token instead
+  // of being treated as theft.
+  describe('refresh-token rotation race', () => {
+    const raceSlug = `e2e-race-${randomUUID().slice(0, 8)}`;
+    const raceEmail = `${raceSlug}@propintel.test`;
+    let refreshToken0;
+
+    beforeAll(async () => {
+      if (!dbReachable) return;
+      const reg = await request(app).post('/api/v1/auth/register').send({
+        email: raceEmail, password, fullName: 'Race Test', tenantName: 'Race Tenant', tenantSlug: raceSlug,
+      });
+      refreshToken0 = reg.body.refreshToken;
+    });
+
+    afterAll(async () => {
+      if (dbReachable) {
+        await pool.query('DELETE FROM tenants WHERE slug = $1', [raceSlug]).catch(() => {});
+      }
+    });
+
+    test('concurrent refreshes of the same token all succeed, and the session survives', async () => {
+      if (!dbReachable) return;
+
+      const results = await Promise.all(
+        Array.from({ length: 5 }, () => request(app).post('/api/v1/auth/refresh').send({ refreshToken: refreshToken0 })),
+      );
+      const statuses = results.map((r) => r.status);
+      expect(statuses.every((s) => s === 200)).toBe(true);
+
+      // Every participant's resulting token must actually still work --
+      // the bug this guards against had participants receiving a 200 with
+      // a token that was, moments later, already revoked by a sibling's
+      // false-positive theft detection.
+      const last = results[results.length - 1].body.refreshToken;
+      const followUp = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: last });
+      expect(followUp.status).toBe(200);
+    });
+
+    test('reuse of a genuinely stale (outside the grace window) token still revokes the family', async () => {
+      if (!dbReachable) return;
+
+      const reg = await request(app).post('/api/v1/auth/register').send({
+        email: `stale-${raceSlug}@propintel.test`, password, fullName: 'Stale Test', tenantName: 'Stale Tenant', tenantSlug: `stale-${raceSlug}`,
+      });
+      const staleToken = reg.body.refreshToken;
+
+      const first = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: staleToken });
+      expect(first.status).toBe(200);
+      const currentToken = first.body.refreshToken;
+
+      // Backdate the rotation past the grace window instead of a real
+      // 10+s sleep -- exercises the same comparison the service makes.
+      await pool.query(
+        "UPDATE refresh_tokens SET revoked_at = now() - interval '1 minute' WHERE token_hash = encode(digest($1, 'sha256'), 'hex')",
+        [staleToken],
+      );
+
+      const replay = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: staleToken });
+      expect(replay.status).toBe(401);
+
+      const currentStillWorks = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: currentToken });
+      expect(currentStillWorks.status).toBe(401);
+
+      await pool.query('DELETE FROM tenants WHERE slug = $1', [`stale-${raceSlug}`]).catch(() => {});
+    });
+  });
 });

@@ -30,6 +30,10 @@ const AUTH_ERROR_MAP: Array<[RegExp, string]> = [
   [/^invalid or expired reset token$/i, 'קישור האיפוס אינו תקין או שפג תוקפו — יש לבקש קישור חדש'],
   [/^reset token already used$/i, 'קישור האיפוס הזה נוצל כבר — יש לבקש קישור חדש'],
   [/^reset token expired$/i, 'קישור האיפוס פג תוקף — יש לבקש קישור חדש'],
+  // The proxy route already turns this into a clearer message once a
+  // refresh attempt has also failed -- this is a fallback for any other
+  // path that might still surface the raw backend string.
+  [/^(invalid or expired token|missing bearer token)$/i, 'החיבור פג תוקף — יש להתחבר מחדש'],
 ]
 
 export function translateAuthError(message: string | null | undefined): string {
