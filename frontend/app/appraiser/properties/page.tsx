@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AppraiserShell } from '@/components/appraiser/shell'
 import { Card, Button, ErrorNote } from '@/components/appraiser/ui'
-import { apiGet, PROPERTY_TYPES } from '@/lib/appraiser-client'
+import { apiGet, formatQuantity, PROPERTY_TYPES } from '@/lib/appraiser-client'
 
 type Property = {
   id: string
@@ -81,7 +81,7 @@ export default function PropertiesPage() {
                   <div className="font-medium text-white">{p.address}</div>
                   <div className="text-sm text-white/50">
                     {p.city} · {PROPERTY_TYPES[p.property_type] || p.property_type}
-                    {p.area_sqm ? ` · ${p.area_sqm} מ״ר` : ''}
+                    {p.area_sqm ? ` · ${formatQuantity(p.area_sqm)} מ״ר` : ''}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

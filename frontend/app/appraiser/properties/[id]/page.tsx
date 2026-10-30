@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState, use as usePromise } from 'react'
+import { useRouter } from 'next/navigation'
 import { AppraiserShell } from '@/components/appraiser/shell'
 import { Card, Field, Input, Select, Textarea, Button, ErrorNote, DateField } from '@/components/appraiser/ui'
-import { apiGet, apiSend, formatILS, translateValuationError, PROPERTY_TYPES, VALUATION_METHODS } from '@/lib/appraiser-client'
+import { CsvComparablesImport } from '@/components/appraiser/csv-import'
+import { apiGet, apiSend, formatILS, formatQuantity, translateValuationError, PROPERTY_TYPES, VALUATION_METHODS } from '@/lib/appraiser-client'
 
 type Property = {
   id: string; address: string; city: string; property_type: string
@@ -27,6 +29,7 @@ type Report = {
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params)
+  const router = useRouter()
   const [property, setProperty] = useState<Property | null>(null)
   const [comps, setComps] = useState<Comparable[]>([])
   const [valuations, setValuations] = useState<Valuation[]>([])
@@ -41,6 +44,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [reportForm, setReportForm] = useState({ clientName: '', purpose: '', principlesNotes: '' })
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [editForm, setEditForm] = useState({
     address: '', city: '', propertyType: 'apartment',
     areaSqm: '', rooms: '', floor: '', yearBuilt: '',
@@ -73,7 +77,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     if (!property) return
     setEditForm({
       address: property.address, city: property.city, propertyType: property.property_type,
-      areaSqm: property.area_sqm ?? '', rooms: property.rooms ?? '',
+      areaSqm: property.area_sqm ? String(Number(property.area_sqm)) : '',
+      rooms: property.rooms ? String(Number(property.rooms)) : '',
       floor: property.floor === null || property.floor === undefined ? '' : String(property.floor),
       yearBuilt: property.year_built ? String(property.year_built) : '',
       block: property.block ?? '', parcel: property.parcel ?? '', subParcel: property.sub_parcel ?? '',
@@ -109,6 +114,20 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       setError(err instanceof Error ? err.message : 'שגיאה בעדכון פרטי הנכס')
     } finally {
       setSavingEdit(false)
+    }
+  }
+
+  async function archiveProperty() {
+    if (!property) return
+    if (!window.confirm(`לארכב את הנכס "${property.address}"? הנכס יוסר מרשימת הנכסים שלך (ניתן לשחזר דרך תמיכה במידת הצורך).`)) return
+    setArchiving(true)
+    setError(null)
+    try {
+      await apiSend('DELETE', `/properties/${id}`)
+      router.push('/appraiser/properties')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בארכוב הנכס')
+      setArchiving(false)
     }
   }
 
@@ -204,12 +223,18 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               <h1 className="text-2xl font-semibold text-white">{property.address}</h1>
               <p className="text-white/50">
                 {property.city} · {PROPERTY_TYPES[property.property_type]}
-                {property.area_sqm ? ` · ${property.area_sqm} מ״ר` : ''}
-                {property.rooms ? ` · ${property.rooms} חדרים` : ''}
+                {property.area_sqm ? ` · ${formatQuantity(property.area_sqm)} מ״ר` : ''}
+                {property.rooms ? ` · ${formatQuantity(property.rooms)} חדרים` : ''}
               </p>
             </div>
             {!editing && (
-              <Button variant="ghost" onClick={startEditing}>✎ עריכת פרטי נכס</Button>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="ghost" onClick={startEditing}>✎ עריכת פרטי נכס</Button>
+                <Button variant="ghost" disabled={archiving} onClick={archiveProperty}
+                  className="!border-red-400/30 !text-red-300 hover:!bg-red-500/10">
+                  {archiving ? 'מארכב/ת…' : '🗄 ארכוב נכס'}
+                </Button>
+              </div>
             )}
           </div>
 
@@ -306,7 +331,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               <div className="mb-4 flex flex-col gap-2 text-sm">
                 {comps.map((c) => (
                   <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2">
-                    <span>{c.area_sqm} מ״ר · קומה {c.floor ?? '—'}{c.year_built ? ` · נבנה ${c.year_built}` : ''}</span>
+                    <span>{formatQuantity(c.area_sqm)} מ״ר · קומה {c.floor ?? '—'}{c.year_built ? ` · נבנה ${c.year_built}` : ''}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-white/60">{formatILS(c.sale_price)} · {new Date(c.sold_at).toLocaleDateString('he-IL')}</span>
                       <button
@@ -350,6 +375,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   {addingComp ? 'מוסיף/ה…' : '+ הוספת עסקת השוואה'}
                 </Button>
               </form>
+              <div className="border-t border-white/10 pt-3">
+                <CsvComparablesImport city={property.city} propertyType={property.property_type} onImported={load} />
+              </div>
             </Card>
 
             {/* Valuations */}

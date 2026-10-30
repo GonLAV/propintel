@@ -58,6 +58,19 @@ export function formatDateInputPreview(value: string | null | undefined): string
   return `${d}.${mo}.${y}`
 }
 
+// area_sqm/rooms are Postgres `numeric` columns and arrive as fixed-scale
+// strings ("85.00", "3.0") -- Intl.NumberFormat with no explicit fraction-
+// digit options naturally drops insignificant trailing zeros while still
+// showing a real one (85.00 -> "85", 85.50 -> "85.5", 3.0 -> "3"), so this
+// is a safe, locale-correct way to display either without a separate
+// "is this a whole number" check.
+export function formatQuantity(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '—'
+  return new Intl.NumberFormat('he-IL').format(n)
+}
+
 export function formatILS(value: number | string | null | undefined) {
   if (value === null || value === undefined) return '—'
   const n = Number(value)
