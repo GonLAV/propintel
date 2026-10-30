@@ -151,8 +151,28 @@ async function confirmPasswordReset(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function inviteInfo(req, res, next) {
+  try {
+    res.json(await authService.getInviteInfo({ token: req.params.token }));
+  } catch (err) { next(err); }
+}
+
+async function acceptInvite(req, res, next) {
+  try {
+    const result = await authService.acceptInvite({
+      ...req.body, ip: ipOf(req), userAgent: uaOf(req),
+    });
+    await writeAudit({
+      tenantId: result.tenant.id, userId: result.user.id, action: 'user.invite.accepted',
+      entity: 'user', entityId: result.user.id, ip: ipOf(req), userAgent: uaOf(req),
+    });
+    res.json(result);
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   register, login, refresh, logout, me,
   googleStart, googleCallback,
   requestPasswordReset, confirmPasswordReset, changePassword,
+  inviteInfo, acceptInvite,
 };

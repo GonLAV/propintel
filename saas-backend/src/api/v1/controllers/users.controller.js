@@ -44,6 +44,21 @@ async function changeRole(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function invite(req, res, next) {
+  try {
+    const { user, inviteToken, expiresAt } = await svc.invite({
+      tenantId: req.user.tenantId, actor: req.user, ...req.body,
+    });
+    await writeAudit({
+      tenantId: req.user.tenantId, userId: req.user.id, action: 'user.invite',
+      entity: 'user', entityId: user.id,
+      ip: req.ip, userAgent: req.headers['user-agent'],
+      metadata: { email: user.email, role: user.role },
+    });
+    res.status(201).json({ user, inviteToken, expiresAt });
+  } catch (err) { next(err); }
+}
+
 async function softDelete(req, res, next) {
   try {
     await svc.softDelete({
@@ -58,4 +73,4 @@ async function softDelete(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { list, getById, update, changeRole, softDelete };
+module.exports = { list, getById, update, changeRole, softDelete, invite };

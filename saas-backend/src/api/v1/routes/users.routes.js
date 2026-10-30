@@ -15,6 +15,10 @@ router.get('/',
   authorize('owner', 'admin', 'member', 'viewer'),
   validate({ query: v.list }), ctrl.list);
 
+router.post('/invite',
+  authorize('owner', 'admin'),
+  validate({ body: v.invite }), ctrl.invite);
+
 router.get('/:id',
   authorize('owner', 'admin', 'member', 'viewer'),
   validate({ params: v.idParam }), ctrl.getById);

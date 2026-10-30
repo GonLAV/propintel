@@ -171,6 +171,41 @@ async function refresh({ refreshToken, ip, userAgent }) {
   return { accessToken, refreshToken: issued.token };
 }
 
+// Public preview for the accept-invite page -- validates and reports on
+// the token without consuming it (nothing is written). Deliberately
+// returns the same "invalid or expired" shape for a missing token, an
+// already-accepted one, and a genuinely expired one, rather than
+// distinguishing them: none of those is actionable differently by an
+// invitee who isn't logged in, and distinguishing them would let someone
+// probe which tokens once existed.
+async function getInviteInfo({ token }) {
+  const row = await usersRepo.findByInviteTokenHash(sha256(token));
+  if (!row || row.status !== 'pending' || new Date(row.invite_expires_at).getTime() < Date.now()) {
+    throw Unauthorized('Invalid or expired invite');
+  }
+  const tenant = await tenantsRepo.findById(row.tenant_id);
+  return { email: row.email, role: row.role, tenantName: tenant?.name || null };
+}
+
+async function acceptInvite({ token, password, fullName, ip, userAgent }) {
+  const tokenHash = sha256(token);
+  const row = await usersRepo.findByInviteTokenHash(tokenHash);
+  if (!row || row.status !== 'pending' || new Date(row.invite_expires_at).getTime() < Date.now()) {
+    throw Unauthorized('Invalid or expired invite');
+  }
+
+  const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
+  const user = await usersRepo.acceptInvite(row.tenant_id, row.id, { passwordHash, fullName });
+  if (!user) throw Unauthorized('Invalid or expired invite');
+
+  const tenant = await tenantsRepo.findById(row.tenant_id);
+  const accessToken = signAccessToken({ sub: user.id, tenantId: user.tenant_id, role: user.role });
+  const { token: refreshToken } = await issueRefreshToken({
+    userId: user.id, tenantId: user.tenant_id, ip, userAgent,
+  });
+  return { user, tenant, accessToken, refreshToken };
+}
+
 async function logout({ refreshToken }) {
   const hash = sha256(refreshToken);
   const row = await refreshRepo.findByHash(hash);
@@ -197,4 +232,6 @@ async function changePassword({ tenantId, userId, currentPassword, newPassword }
   await refreshRepo.revokeAllForUser(userId);
 }
 
-module.exports = { register, login, refresh, logout, changePassword, parseTtlMs };
+module.exports = {
+  register, login, refresh, logout, changePassword, parseTtlMs, getInviteInfo, acceptInvite,
+};

@@ -22,6 +22,11 @@ router.post('/password/reset/confirm', authLimiter,
 router.post('/password/change', authenticate, authLimiter,
   validate({ body: v.changePassword }), ctrl.changePassword);
 
+router.get('/invite/:token', authLimiter,
+  validate({ params: v.inviteTokenParam }), ctrl.inviteInfo);
+router.post('/invite/accept', authLimiter,
+  validate({ body: v.acceptInvite }), ctrl.acceptInvite);
+
 router.get('/oauth/google',          ctrl.googleStart);
 router.get('/oauth/google/callback', ctrl.googleCallback);
 

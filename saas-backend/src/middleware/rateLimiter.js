@@ -42,7 +42,23 @@ const userLimiter = buildLimiter({
 const authLimiter = buildLimiter({
   windowMs: config.rateLimit.authWindowMs,
   max: config.rateLimit.authMax,
-  keyGenerator: (req) => `${req.ip}:${(req.body && req.body.email) || ''}`.toLowerCase(),
+  // Most auth endpoints carry `email` in the body, keying the budget per
+  // (ip, account). A few carry a one-time `token` instead (invite
+  // accept/info, password-reset confirm), and password/change is
+  // authenticated but has neither -- falling through to a shared
+  // empty-string key would collapse every such request from one IP into a
+  // single bucket, so a handful of concurrent invite-accepts from one
+  // office network (or just a few password changes) could lock out
+  // everyone else's unrelated request (found by a real multi-invite test,
+  // not by inspection; confirmed on password/change by the same symptom
+  // recurring on a second endpoint). Key on whichever identifier the
+  // request actually carries so distinct accounts/tokens never share one.
+  keyGenerator: (req) => {
+    const body = req.body || {};
+    const subject = body.email || body.token || (req.params && req.params.token)
+      || (req.user && req.user.id) || '';
+    return `${req.ip}:${String(subject).toLowerCase()}`;
+  },
   prefix: 'auth',
 });
 

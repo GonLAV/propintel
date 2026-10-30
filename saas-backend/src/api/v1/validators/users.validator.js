@@ -22,4 +22,10 @@ const changeRole = z.object({
   role: z.enum(['owner', 'admin', 'member', 'viewer']),
 }).strict();
 
-module.exports = { idParam, list, update, changeRole };
+const invite = z.object({
+  email: z.string().email().max(254).toLowerCase(),
+  role: z.enum(['owner', 'admin', 'member', 'viewer']).default('member'),
+  fullName: z.string().min(1).max(120).optional(),
+}).strict();
+
+module.exports = { idParam, list, update, changeRole, invite };

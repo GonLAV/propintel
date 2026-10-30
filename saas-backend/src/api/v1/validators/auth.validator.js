@@ -46,6 +46,15 @@ const changePassword = z.object({
   newPassword: password,
 }).strict();
 
+const inviteTokenParam = z.object({ token: z.string().min(16).max(256) }).strict();
+
+const acceptInvite = z.object({
+  token: z.string().min(16).max(256),
+  password,
+  fullName: z.string().min(1).max(120).optional(),
+}).strict();
+
 module.exports = {
   register, login, refresh, requestPasswordReset, confirmPasswordReset, changePassword,
+  inviteTokenParam, acceptInvite,
 };
