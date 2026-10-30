@@ -41,7 +41,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [runningMethod, setRunningMethod] = useState<string | null>(null)
   const [generatingReportFor, setGeneratingReportFor] = useState<string | null>(null)
   const [reportFormFor, setReportFormFor] = useState<string | null>(null)
-  const [reportForm, setReportForm] = useState({ clientName: '', purpose: '', principlesNotes: '' })
+  const [reportForm, setReportForm] = useState({
+    clientName: '', purpose: '', principlesNotes: '', bankName: '', bankReference: '',
+  })
   const [editing, setEditing] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [archiving, setArchiving] = useState(false)
@@ -196,10 +198,12 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         ...(reportForm.clientName ? { clientName: reportForm.clientName } : {}),
         ...(reportForm.purpose ? { purpose: reportForm.purpose } : {}),
         ...(reportForm.principlesNotes ? { principlesNotes: reportForm.principlesNotes } : {}),
+        ...(reportForm.bankName ? { bankName: reportForm.bankName } : {}),
+        ...(reportForm.bankReference ? { bankReference: reportForm.bankReference } : {}),
       })
       window.open(`/api/appraiser/reports/${report.id}/pdf`, '_blank')
       setReportFormFor(null)
-      setReportForm({ clientName: '', purpose: '', principlesNotes: '' })
+      setReportForm({ clientName: '', purpose: '', principlesNotes: '', bankName: '', bankReference: '' })
       const r = await apiGet<{ items: Report[] }>(`/reports?propertyId=${id}`)
       setReports(r.items)
     } catch (err) {
@@ -412,7 +416,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                             <Field label="מזמין/ת השומה">
                               <Input value={reportForm.clientName}
                                 onChange={(e) => setReportForm((f) => ({ ...f, clientName: e.target.value }))}
-                                placeholder="לדוגמה: בנק הפועלים / ישראל ישראלי" />
+                                placeholder="לדוגמה: ישראל ישראלי" />
                             </Field>
                             <Field label="מטרת השומה">
                               <Select value={reportForm.purpose}
@@ -425,6 +429,28 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                                 <option value="אחר">אחר</option>
                               </Select>
                             </Field>
+                            {reportForm.purpose === 'משכנתא' && (
+                              <div className="flex gap-2">
+                                <Field label="לכבוד (הבנק) — אופציונלי">
+                                  <Input value={reportForm.bankName} list="bank-name-suggestions"
+                                    onChange={(e) => setReportForm((f) => ({ ...f, bankName: e.target.value }))}
+                                    placeholder="לדוגמה: בנק הפועלים" />
+                                  <datalist id="bank-name-suggestions">
+                                    <option value="בנק לאומי" />
+                                    <option value="בנק הפועלים" />
+                                    <option value="בנק דיסקונט" />
+                                    <option value="בנק מזרחי-טפחות" />
+                                    <option value="הבנק הבינלאומי" />
+                                    <option value="בנק ירושלים" />
+                                  </datalist>
+                                </Field>
+                                <Field label="מספר תיק/הלוואה בבנק — אופציונלי">
+                                  <Input value={reportForm.bankReference}
+                                    onChange={(e) => setReportForm((f) => ({ ...f, bankReference: e.target.value }))}
+                                    placeholder="לדוגמה: 123456" />
+                                </Field>
+                              </div>
+                            )}
                             <Field label="עקרונות ושיקולים נוספים (אופציונלי)">
                               <Textarea rows={2} value={reportForm.principlesNotes}
                                 onChange={(e) => setReportForm((f) => ({ ...f, principlesNotes: e.target.value }))}

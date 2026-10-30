@@ -20,6 +20,12 @@ const create = z.object({
   // extractPrinciplesSummary in reports.service.js). Optional free text,
   // same pattern as clientName/purpose.
   principlesNotes: z.string().max(4000).optional(),
+  // Optional bank addressee + the bank's own file/loan reference number for
+  // a mortgage appraisal (see migration 1700000006000 for why these are
+  // separate from clientName). Same honest-gap pattern: omitted entirely
+  // when not provided, never defaulted or guessed.
+  bankName: z.string().min(1).max(255).optional(),
+  bankReference: z.string().min(1).max(100).optional(),
 }).strict();
 
 const list = z.object({

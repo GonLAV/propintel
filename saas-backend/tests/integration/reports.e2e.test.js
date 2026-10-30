@@ -201,6 +201,37 @@ describe('report PDF export end-to-end (real Postgres + Redis)', () => {
     expect(text).toContain((2100000 + 40000).toLocaleString('en-US')); // comp #1 sale price
   }, 30000);
 
+  test('a report with a bank addressee renders "לכבוד" + bank name + reference, and omits them when not provided', async () => {
+    if (!dbReachable) return;
+
+    const withBank = await request(app)
+      .post('/api/v1/reports')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        valuationId: comparablesValuationId,
+        title: 'שומה למשכנתא - בנק הפועלים',
+        format: 'pdf',
+        bankName: 'בנק הפועלים',
+        bankReference: 'LOAN-998877',
+      });
+    expect(withBank.status).toBe(201);
+
+    const withBankPdf = await downloadBinary(app, withBank.body.storage_url, token);
+    const withBankText = await pdfText(withBankPdf.body);
+    expect(withBankText).toContain('לכבוד: בנק הפועלים');
+    expect(withBankText).toContain('LOAN-998877');
+
+    const withoutBank = await request(app)
+      .post('/api/v1/reports')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ valuationId: comparablesValuationId, title: 'שומה ללא ייעוד לבנק', format: 'pdf' });
+    expect(withoutBank.status).toBe(201);
+
+    const withoutBankPdf = await downloadBinary(app, withoutBank.body.storage_url, token);
+    const withoutBankText = await pdfText(withoutBankPdf.body);
+    expect(withoutBankText).not.toContain('לכבוד:');
+  }, 30000);
+
   test('a report created with format "json" has no storage_url and its /pdf route 400s', async () => {
     if (!dbReachable) return;
 

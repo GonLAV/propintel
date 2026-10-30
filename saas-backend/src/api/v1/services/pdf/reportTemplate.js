@@ -241,6 +241,7 @@ function renderReportHtml(payload) {
   h3 { font-size: 12.5px; color: #14532d; margin: 10px 0 4px; }
   .opening { margin-bottom: 4px; }
   .opening .meta-line { display: flex; justify-content: space-between; color: #444; font-size: 11.5px; margin-bottom: 6px; }
+  .opening .addressee { font-weight: 700; margin: 2px 0 6px; }
   .opening .subject { text-decoration: underline; font-weight: 700; margin: 8px 0 6px; }
   .disclaimer {
     font-weight: 700;
@@ -300,6 +301,12 @@ function renderReportHtml(payload) {
       <span>מספרנו: ${escapeHtml(reportId)}</span>
       <span>מספר שומה: ${escapeHtml(valuation.id)}</span>
     </div>
+    ${report?.bankName ? `<p class="addressee">לכבוד: ${escapeHtml(report.bankName)}</p>` : ''}
+    ${report?.bankReference ? `
+    <div class="meta-line">
+      <span>מספר תיק/הלוואה בבנק: ${escapeHtml(report.bankReference)}</span>
+      <span>&nbsp;</span>
+    </div>` : ''}
     <h1>שומת מקרקעין</h1>
     <div class="subject">הנדון: שומת ${escapeHtml(propertyTypeLabel(property.propertyType))} ברחוב ${escapeHtml(property.address)}, ${escapeHtml(property.city)}</div>
     <p class="section-lead">לפי בקשתכם, להלן חוות דעתי בדבר שווי הנכס שבנדון.</p>

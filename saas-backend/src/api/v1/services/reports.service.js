@@ -193,6 +193,7 @@ function renderMarkdown(p) {
 
 async function create(tenantId, {
   valuationId, title, format, createdBy, clientName, purpose, principlesNotes,
+  bankName, bankReference,
 }) {
   const valuation = await valRepo.findById(tenantId, valuationId);
   if (!valuation) throw NotFound('Valuation not found');
@@ -207,6 +208,7 @@ async function create(tenantId, {
 
   let report = await repo.create(tenantId, {
     valuationId, title, format, payload, createdBy, clientName, purpose, principlesNotes,
+    bankName, bankReference,
   });
 
   if (format === 'pdf') {
@@ -224,7 +226,10 @@ async function create(tenantId, {
         email: appraiser?.email || null,
         licenseNumber: appraiser?.license_number || null,
       },
-      report: { clientName: report.client_name, purpose: report.purpose },
+      report: {
+        clientName: report.client_name, purpose: report.purpose,
+        bankName: report.bank_name, bankReference: report.bank_reference,
+      },
       property: {
         ...base.property,
         externalRef: property.external_ref,
